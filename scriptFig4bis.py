@@ -30,6 +30,7 @@ import os
 
 from scipy.optimize import basinhopping  # , minimize
 # ------------------------------------------------------------------------------------------------------------
+# TEST FOR GitHUb
 # epsilon = 3 for all these sdimulations
 # We can consider a=2 for the best approximation of the Gibbs distribution !!
 # Gaussian separable Kernel function
