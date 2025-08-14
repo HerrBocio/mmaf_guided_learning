@@ -111,12 +111,12 @@ for i,arch in enumerate(reversed(archs)):#reversed
     data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
     data=data[:,-redux:] #not using first part of the dataset
     data,slope,q=rescalingU(data,eps=0.000001) #rescales values of the field
-    data_val=data[:,-a[current_id]:] 
+    last_cone=data[:,-a[current_id]:] 
     data=data[:,:-a[current_id]]
     #print(slope,q)
     #print(data.shape)
-    val=data_val[:,-1]
-    test=data[:,-1] 
+    test=last_cone[:,-1] #output value of the last cone (regarding the complete dataset)
+    val=data[:,-1] #output value of the second last cone (regarding the complete dataset) #it's not split from data, gets split of in OptSGD, here we only create this variable to store in file
     #print(test)
     N=data.shape[1]
     x_size=data.shape[0]
@@ -134,9 +134,9 @@ for i,arch in enumerate(reversed(archs)):#reversed
       out,params,b,pit,batch,Xt= OptSGD(Z,x_size,'_',eps,delta,data,inp,p[0],c,arch,dim([inp,*arch]),Ndraws,m,Ncoords,shard_size_p2[4-i],lr,rhoScaling,slope,q,piScaling=pir,acrit=acrit) #NCoords not needed, Ndraws number of members in the ensemble forecast(doesn't have something to do with N)
       #outIR=rescalingInv(out,slope,q,eps=0.000001) 
       
-      outV,pitV,XtV=validation(Z,data_val,params,inp,p[0] ,c,arch,dim([inp,*arch]),Ndraws,acrit)
+      outV,pitV,XtV=validation(Z,last_cone,params,inp,p[0] ,c,arch,dim([inp,*arch]),Ndraws,acrit)
       
-      hdata=[out,      outV,  b,      params,  pit,pitV, test,val,  np.array(batch),Xt,XtV,acrit]
+      hdata=[out,      outV,  b,      params,  pit,pitV, val,test,  np.array(batch),Xt,XtV,acrit]
       names=['output','outV','bound','params','pit','pitV','test','val','batch',        'pval','pvalV','acrit']
       makeh5(file_pir,hdata,names,path) # SET BACK!!!
 

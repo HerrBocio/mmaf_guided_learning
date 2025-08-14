@@ -126,7 +126,7 @@ def empirical_risk(A,b,realization,arch,mask,dim,loss,eps,num_realizations=1):
     #print(type(eU))
     return eU
 
-def empirical_val(A,b,realization,arch,mask,dim,loss,eps,num_realizations=10):
+def empirical_val(A,b,realizations,arch,mask,dim,loss,eps,num_realizations=10):
     
     #print(realization.shape)          
     def pozzo(params,mask,arch):
@@ -134,11 +134,11 @@ def empirical_val(A,b,realization,arch,mask,dim,loss,eps,num_realizations=10):
      return pozzo
     wojtyla= lambda a: pozzo(a,mask,arch)
   
-    realization=jax.vmap(wojtyla)(realization)
+    realizations=jax.vmap(wojtyla)(realizations)
     empR=lambda beta : return_loss_function(A,b,beta,loss,eps)
     #realization=post(rhoParams)#,num_realizations=20)
     #print(realization.shape)
-    eU=empR(realization)
+    eU=empR(realizations)
     return eU
 
 
@@ -474,8 +474,8 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
        #print(mask)   	
      
     #max_val=int(data.shape[1]-1)
-    last_cone  = data[:,-Z.a:] #change!!!25:50 #cone that you want to have the prediction on
-    data_train = data[:,:-Z.a]#-2001
+    last_cone  = data[:,-Z.a:] #cone for validation
+    data_train = data[:,:-Z.a]
 			
     #validation=data_val[:,0]
     #test=data[:,-1]
@@ -653,14 +653,14 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
     #params_shards= jnp.array([jnp.arange(element,(element+shard_size)) for element in range(p,x_size-p-1,shard_size)])
     list_shards= ([jnp.array([jnp.arange(c_coord-p,c_coord+p+1) for c_coord in range(element,element+shard_size)]) for element in range(p,x_size-p-1,shard_size)]) #selecting the amount of spatial coordinates that each shard has; how big is the chunk that needs to be paralized in terms of coordinates
     print(Z.Nbatches)
-    for batch in range(1,Z.Nbatches):
+    for batch in range(1,Z.Nbatches): #optimization routine
     #def batching(batch)#,params=params,opt_state=opt_state,rng=rng):: int,len(range(0,x_size,shard_size))
     #here starts a new batch init
         #subkey,rng=jax.random.split(rng)
         key = jax.random.PRNGKey(batch)
         keys = [jax.random.split(key*(el+1), shard_size).reshape(shard_size, 2) for el in range((x_size-2*p-1)//shard_size)]#print(rng,subkey)
         #print('time',batch)
-        time_mapped=jax.vmap(t_slicing)(time_windows[batch])#print('coord',x_coord) #all spatial points have same cut in time
+        time_mapped=jax.vmap(t_slicing)(time_windows[batch])#print('coord',x_coord) #all spatial points have same cut in time #pick the slice of data which contains the batch
         #print(time_mapped.shape)
         time_mapped=jnp.squeeze(time_mapped,axis=1)      #jnp.reshape(time_mapped,(len(it_coord),Z.Bsize),order='F')
         shard_slicing=lambda beta: lax.dynamic_index_in_dim(time_mapped,beta,axis=1)
