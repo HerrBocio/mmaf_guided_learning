@@ -43,7 +43,7 @@ eps=5
 #a=[47,45,47,47,134,207]#47#3
 a=[3,3] #[3,3]
 center_pixel=100
-p=[2]
+p=[1] #try different values
 
 def get_simulated_data(filename):
   data=loadmat(filename+'.mat')
@@ -88,18 +88,18 @@ filename=''
 
 
 delta=2/.05
-rhoScaling=1./2			
+#rhoScaling=1./2			
 acrit=.75
-inp=8
+inp=3 #a(p,c), change this if you change p and c
 ##m=range(mincones,maxcones+stepcones,stepcones)
 #a= range(mina,maxa,stepa)
 output=[]
 bound=[]
-archs=[[1],[10,1],[10,10,1],[11,10,10,10,10,10,1],[60,50,30,20,10,1]] #[10,10,1],
-shard_size_p2=[196,196,98,49,28]
-#shard_size=[198,198,99,66,33]#
+archs=[[1]]#,[10,1],[10,10,1],[11,10,10,10,10,10,1],[60,50,30,20,10,1]] #[10,10,1],
+#shard_size_p2=[196,196,98,49,28]
+shard_size=[198,198,99,66,33]# parallelization, has to be divisors of 198
 m=30#[5,10,25,50]#[50,70,85,100]#
-piRescaling=range(10,int(np.floor(3.5*m)),10)
+piRescaling=range(10,int(np.floor(3.5*m)),10) #gridsearch for prior
 
 file_=h5py.File(path+filename+'tvalidationFix75a3p2.h5','w')   
 
@@ -109,8 +109,8 @@ for i,arch in enumerate(reversed(archs)):#reversed
   for current_id in reversed(range(len(datasetsM))):
     print(datasetsM[current_id])
     data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
-    data=data[:,-redux:]
-    data,slope,q=rescalingU(data,eps=0.000001)
+    data=data[:,-redux:] #not using first part of the dataset
+    data,slope,q=rescalingU(data,eps=0.000001) #rescales values of the field
     data_val=data[:,-a[current_id]:] 
     data=data[:,:-a[current_id]]
     #print(slope,q)
@@ -131,7 +131,7 @@ for i,arch in enumerate(reversed(archs)):#reversed
       #file_pir=file_data.create_group('pir'+str(pir))
       #print(file_pir.keys())
       Z = STOU(0,data,A_estimatedM[current_id],c_estimatedM[current_id],arch,N,m,a[current_id],p[0],h_t=0.05)
-      out,params,b,pit,batch,Xt= OptSGD(Z,x_size,'_',eps,delta,data,inp,p[0],c,arch,dim([inp,*arch]),Ndraws,m,Ncoords,shard_size_p2[4-i],lr,rhoScaling,slope,q,piScaling=pir,acrit=acrit)
+      out,params,b,pit,batch,Xt= OptSGD(Z,x_size,'_',eps,delta,data,inp,p[0],c,arch,dim([inp,*arch]),Ndraws,m,Ncoords,shard_size_p2[4-i],lr,rhoScaling,slope,q,piScaling=pir,acrit=acrit) #NCoords not needed, Ndraws number of members in the ensemble forecast(doesn't have something to do with N)
       #outIR=rescalingInv(out,slope,q,eps=0.000001) 
       
       outV,pitV,XtV=validation(Z,data_val,params,inp,p[0] ,c,arch,dim([inp,*arch]),Ndraws,acrit)
