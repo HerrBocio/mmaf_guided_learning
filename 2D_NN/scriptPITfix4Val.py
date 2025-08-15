@@ -5,7 +5,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]='1'#,2,3'#,2,3'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
 from STOUpozo import STOU
-from SGEbatchPIT import OptSGD,validation
+from SGEbatchPIT import OptSGD,testing
 import numpy as np
 import h5py
 from datetime import datetime
@@ -134,7 +134,7 @@ for i,arch in enumerate(reversed(archs)):#reversed
       out,params,b,pit,batch,Xt= OptSGD(Z,x_size,'_',eps,delta,data,inp,p[0],c,arch,dim([inp,*arch]),Ndraws,m,Ncoords,shard_size_p2[4-i],lr,rhoScaling,slope,q,piScaling=pir,acrit=acrit) #NCoords not needed, Ndraws number of members in the ensemble forecast(doesn't have something to do with N)
       #outIR=rescalingInv(out,slope,q,eps=0.000001) 
       
-      outV,pitV,XtV=validation(Z,last_cone,params,inp,p[0] ,c,arch,dim([inp,*arch]),Ndraws,acrit)
+      outV,pitV,XtV=testing(Z,last_cone,params,inp,p[0] ,c,arch,dim([inp,*arch]),Ndraws,acrit)
       
       hdata=[out,      outV,  b,      params,  pit,pitV, val,test,  np.array(batch),Xt,XtV,acrit]
       names=['output','outV','bound','params','pit','pitV','test','val','batch',        'pval','pvalV','acrit']

@@ -47,7 +47,10 @@ def ffnnLossPozzo(inp,weights,b):
     #print('inp',inp)#print(arch)
     forward=lambda alpha:(ffnnPozzo(alpha,weights)) #JITTED jax.jit
     l=0
-    l=jax.vmap(jnp.abs)(jax.vmap(forward,in_axes=1)(inp)-b)
+    fun_b = lambda x: (x <= eps).astype(dtype='float32') * x + (x > eps).astype(dtype='float32') * eps
+    fun_abs= lambda abs: jnp.abs(abs)
+    l=jax.vmap(fun_abs)(jax.vmap(forward,in_axes=1)(inp)-b)
+    l=jax.vmap(fun_b)(l)
     l=jnp.mean(l)#-b
     #l=jnp.abs(l)
     return l

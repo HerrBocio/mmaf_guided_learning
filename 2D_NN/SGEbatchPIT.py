@@ -155,9 +155,8 @@ def get_loss_function(A,b,weights,loss,eps=2.99):
 
     fun_map = lambda beta: ffnnLossPozzo(A,beta,b) 
 
-    fun_b = lambda x: (x <= eps).astype(dtype='float32') * x + (x > eps).astype(dtype='float32') * eps
     
-    r_eps= fun_b(fun_map(weights))#*m#ABS BOUNDED!
+    r_eps= fun_map(weights)#*m#ABS BOUNDED!
     
     return r_eps
     
@@ -401,18 +400,18 @@ def get_loss_vector(A,b,w,arch,loss,eps=2.99):
     return r_eps#jnp.hstack([jnp.ones(r_eps.shape[0]),r_eps])
 
 
-def validation(Z,data_val,params,inp,p,c,arch,dim,Ndraws,acrit=.25,rngV=jax.random.key(0)):
+def testing(Z,data_test,params,inp,p,c,arch,dim,Ndraws,acrit=.25,rngV=jax.random.key(0)):
 
 
   #N=data_val.shape[1]
-  x_size=data_val.shape[0]
-  val_cone_slicing= lambda beta: lax.dynamic_index_in_dim(data_val, beta,axis=0)
+  x_size=data_test.shape[0]
+  test_cone_slicing= lambda beta: lax.dynamic_index_in_dim(data_test, beta,axis=0)
   list_windows= jnp.array([jnp.arange(element-p,element+p+1) for element in range(p,x_size-p-1)])
   
         
-  def validator(it_coord,it_params,rngV):
-      val_mapped=jax.vmap(val_cone_slicing)(it_coord) 
-      val_mapped=jnp.reshape(val_mapped,(len(it_coord),Z.a ))#print('coord',x_coord)
+  def tester(it_coord,it_params,rngV):
+      test_mapped=jax.vmap(test_cone_slicing)(it_coord) 
+      test_mapped=jnp.reshape(test_mapped,(len(it_coord),Z.a ))#print('coord',x_coord)
       struct=[inp,*arch]
       mask=[0]
       s=0  
@@ -421,14 +420,14 @@ def validation(Z,data_val,params,inp,p,c,arch,dim,Ndraws,acrit=.25,rngV=jax.rand
          s+= (struct[el]+1)*struct[el+1]
          mask.append(s)
          #print(mask)   	
-      test=data_val[:,-1] 
+      test=data_test[:,-1] 
       coord=[]
       for t in reversed(range(p)): #parallelize!!!
           coord.append(jnp.array([[v, - (t + 1)] for v in range(-c*(t + 1), c*(t + 1) + 1)]))
       coord = jnp.concat(coord, axis=0)
       coord = jnp.expand_dims(jnp.expand_dims(coord, 0), 0)
       
-      cone_end_coordinates = jnp.array([p, data_val.shape[1]-1])#, dtype="int32")
+      cone_end_coordinates = jnp.array([p, data_test.shape[1]-1])#, dtype="int32")
       #print("\tbefore ends: ", cone_end_coordinates)
       cone_end_coordinates = jnp.expand_dims(cone_end_coordinates, 0)
       #print("\t\tafter ends: ", cone_end_coordinates)
@@ -439,9 +438,9 @@ def validation(Z,data_val,params,inp,p,c,arch,dim,Ndraws,acrit=.25,rngV=jax.rand
           return par.flatten()[flat_idx]	
       #print(cone_mapped.shape)
       #print('val mapped',val_mapped.shape)
-      A=gather_nd(val_mapped,cone_coordinates)
+      A=gather_nd(test_mapped,cone_coordinates)
       #print(it_params[0].shape,it_params[1].shape)
-      b=gather_nd(val_mapped,cone_end_coordinates)
+      b=gather_nd(test_mapped,cone_end_coordinates)
       w=post([it_params[0],it_params[1]],Ndraws,seed=rngV)    
       #print(w.shape)
       o=ffnnV(A,[inp,*arch],mask,w)
@@ -453,11 +452,11 @@ def validation(Z,data_val,params,inp,p,c,arch,dim,Ndraws,acrit=.25,rngV=jax.rand
       #print(s)
       s=jnp.sum(s)
       return [output,s]          
-  vvv=lambda beta,gamma: validator(beta,gamma,rngV)
-  output,pit=jax.vmap(vvv)(list_windows,params)
+  ttt=lambda beta,gamma: tester(beta,gamma,rngV)
+  output,pit=jax.vmap(ttt)(list_windows,params)
   pit=jnp.bincount(pit.astype('int16'),length=output.shape[1])
   Xtesting= chisquare(f_obs=pit).pvalue
-  print('validation at ', acrit,'% level with p-value ',Xtesting)
+  print('testing at ', acrit,'% level with p-value ',Xtesting)
 
   return output,pit,Xtesting
 
