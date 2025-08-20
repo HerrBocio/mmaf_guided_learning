@@ -462,8 +462,12 @@ def testing(Z,data_test,params,inp,p,c,arch,dim,Ndraws,acrit=.25,rngV=jax.random
 
 #@jit
 def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,shard_size,lr,rhoScaling,slope,q,piScaling=1,acrit=.25):
+    """
+    ...
+    
+    """
 
-    struct=[inp,*arch]
+    struct=[inp,*arch] #j adds inp as a first element to arch
   
     mask=[0]
     s=0  
@@ -473,21 +477,21 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
        #print(mask)   	
      
     #max_val=int(data.shape[1]-1)
-    last_cone  = data[:,-Z.a:] #cone for validation
-    data_train = data[:,:-Z.a]
+    last_cone  = data[:,-Z.a:] #j cone for validation
+    data_train = data[:,:-Z.a] #j training data set
 			
     #validation=data_val[:,0]
     #test=data[:,-1]
 			
-    N=data.shape[1]
-    x_size=last_cone.shape[0]
+    N=data.shape[1] #i appparently unneccessary
+    x_size=last_cone.shape[0] #i already input parameter, this line is not needed
     #print('in sgd',x_size)
     #time.sleep(10)
 	#trange(Ndraws, position=0, desc="r", leave=True, colour='green'):rrrrrrr
     
     
     coord = []
-    rng = jax.random.key(0) #starting key, to make it reproducable
+    rng = jax.random.key(0) #j starting random key, to make it reproducable
     #output = np.array(np.zeros((Ncoords,Ndraws)))
     output=[]
     for t in reversed(range(p)): #parallelize!!!
@@ -495,10 +499,10 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
     coord = jnp.concat(coord, axis=0)
     coord = jnp.expand_dims(jnp.expand_dims(coord, 0), 0)
     
-    bounds=[]#np.zeros(Nsteps)
-    pars=[]
+    bounds=[]#np.zeros(Nsteps) #i appparently unneccessary
+    pars=[]#i appparently unneccessary
     #print(coord)  
-    list_windows= jnp.array([jnp.arange(element-p,element+p+1) for element in range(p,x_size-p)])
+    list_windows= jnp.array([jnp.arange(element-p,element+p+1) for element in range(p,x_size-p)]) #i appparently unneccessary
     #print(list_windows)
     #### related to choice of the prior; fixed vs mixed setup (doesn't matter for linear predictor) - variance is either fixed or dependend on number of output nodes; mean of the prior is zero
     aux_in=[inp,*arch[:-1]]

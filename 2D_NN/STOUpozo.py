@@ -38,7 +38,7 @@ def ffnnPozzo(inp,w):#,bias):
        x=jax.vmap(jnp.tanh)(x)  #activation
        #print('ax',x.shape)
     #print('s',jnp.matmul(x,w[-1][:-1,:]))
-    return jnp.matmul(x,w[-1][:-1,:])
+    return jnp.matmul(x,w[-1][:-1,:]) #q no bias in last layer??
     
 
 
@@ -266,7 +266,7 @@ class STOU:
         self.m=A.shape[0]
         #print("m: ",self.m,"points considered: ",data.shape[1]/self.m)
         #self.l=tf.cast(tf.floor(self.m/self.k),dtype=tf.float16)
-        self.r_eps=get_loss_function(A,b,arch,loss,eps=eps)
+        self.r_eps=get_loss_function(A,b,arch,loss,eps=eps) #j r_eps = r^{\epsilon}(h) empirical error
         #print("out of get_loss")
         return get_posterior_ffnn(A, b,arch,dim,mask,loss,self.m,eps, num_realizations,mean,var,num)#,model
         
