@@ -238,11 +238,28 @@ def prior(piP,num_realizations=1,seed=0):
     return sam	
 
 
-def pacA(piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch): #EXP ON!!
+def pacA(piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch,unbounded): #EXP ON!!
     """
     returns a function of rho that approximates the part of the PAC bound that does not need sampling from rho
     """
+    if unbounded:
+        return lambda beta: pacApproxUnbounded(beta,piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch)
     return lambda beta: pacApprox(beta,piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch)
+
+def pacApproxUnbounded(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch): #j works only for linear predictors so far!
+    """
+    approximates the part of the unbounded case PAC bound that does not need sampling from rho except for some constants
+    """
+    bb=0
+    rhoParams=[params[0],params[1]]
+    piParams=[piParams[0],piParams[1]]
+    NNsize=dimComp(arch)
+    kl=KLdiag(piParams,rhoParams,NNsize)
+    theta=0 #todo
+    bb= (1./jnp.sqrt(m))*kl+jnp.sqrt((eps*delta*theta/m)*kl)
+    #print('\n\tbound ',bb*1)
+    #bound.append(bb[0]*1)
+    return bb#jnp.float32(bb)
 
 
 def pacApprox(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch):
@@ -287,6 +304,21 @@ def pacApproxE(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch): #q 
     #print(jnp.exp(-lambda_*(a-p)))#lambda gamma: 
     bb= (1./jnp.sqrt(m))*kl+jnp.sqrt((eps*delta*theta)*2*kl)
     #print(bb)
+    return bb
+
+def pacBoundUnbounded(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch): #todo, only for linear predictors so far
+    """
+    approximates the part of the unbounded case PAC bound that does not need sampling from rho with all constants
+    """
+    p=1
+    bb=0
+    rhoParams=[params[0],params[1]]#jnp.diag(params[1])]
+    piParams=[piParams[0],piParams[1]]#jnp.diag(piParams[1])]
+    NNsize=dimComp(arch)
+    bb= 2*(jnp.log(delta))/jnp.sqrt(m) + (.5*eps**2)/jnp.sqrt(m)
+    kl=KLdiag(piParams,rhoParams,NNsize)
+    theta=(naiveLip(prior(piParams),arch)*a_p_c+1)  #lambda gamma: 
+    bb= (1./jnp.sqrt(m))*kl+jnp.sqrt((eps*delta*theta/m)*kl)
     return bb
 
 def pacBound(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch):
@@ -498,7 +530,7 @@ def testing(Z,data_test,params,inp,p,c,arch,dim,Ndraws,acrit=.25,rngV=jax.random
 
 #@jit
 #def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,shard_size,lr,rhoScaling,slope,q,piScaling=1,acrit=.25): rhoScaling not needed
-def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,shard_size,lr,slope,q,piScaling=1,acrit=.25):
+def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,shard_size,lr,slope,q,piScaling=1,unbounded=False,acrit=.25):
     """
     ...
     
@@ -584,7 +616,7 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
     #a list of arrays with each array corresponding to a (future) batch and containing all its timestamps [this is for a fixed x*]
     t_slicing= lambda beta: lax.dynamic_index_in_dim(jnp.transpose(data_train), beta,axis=0) #j technical function to cut dataset the way we want it (for temporal indices)
 
-    def ef(it_coord,data,params,piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch):
+    def ef(it_coord,data,params,piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch,unbounded):
         """
         approximates/estimates the right hand side of the PAC bound with all its constants and with more samples than in the optimization routine
         """
@@ -609,7 +641,7 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
         finalBound= sm + pacBound(params,piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch)    
         return finalBound
 
-    def coordit(it_coord,it_params,opt_state,batch,Bsize,slope,q,rng=rng):
+    def coordit(it_coord,it_params,opt_state,batch,Bsize,slope,q,unbounded,rng=rng):
         """
         it_coord: input argument, that d_slicing takes
         it_params: ... the parameters that are optimized over?
@@ -731,7 +763,7 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
         #print(time_mapped.shape)
         #print(list_shards)
         d_slicing= lambda beta: lax.dynamic_index_in_dim(time_mapped,beta,axis=1)  #  [,:] #j see t_slicing, for spatial indices
-        ccc=jax.vmap(lambda og,pmap,opt,rngM: coordit(og,pmap,opt,batch,Z.Ncones*Z.a,slope,q,rngM),in_axes=(0,0,0,0)) #j is a parallelized version of coordit (it is a function that will be applied in the for-loop below)
+        ccc=jax.vmap(lambda og,pmap,opt,rngM: coordit(og,pmap,opt,batch,Z.Ncones*Z.a,slope,q,unbounded,rngM),in_axes=(0,0,0,0)) #j is a parallelized version of coordit (it is a function that will be applied in the for-loop below)
         #print(time_mapped[:,list_shards[0]]   )
         #window_sharded = jax.vmap(shard_slicing)(list_shards)
         #print(window_sharded.shape)
@@ -772,7 +804,7 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
         #if Xtesting > acrit:# and pit.sum()==x_size-2*p-1 : 
           #break
     print('p-value after ',batch,' iterations: ',Xtesting) 
-    finalStep=lambda coord,beta: ef(coord,data,beta,piParams,eps,delta,Ac.shape[0],Z.a,Z.m,Z.alpha,Z.lambda_,Z.p,dim,([inp,*arch]))
+    finalStep=lambda coord,beta: ef(coord,data,beta,piParams,eps,delta,Ac.shape[0],Z.a,Z.m,Z.alpha,Z.lambda_,Z.p,dim,([inp,*arch]),unbounded)
     finalBound=jnp.array([])
     for ls_f in range((x_size-2*p-1)//shard_size):   
       fB=jax.vmap(finalStep)(list_shards[ls_f],params[ls_f])
