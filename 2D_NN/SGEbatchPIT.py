@@ -81,29 +81,39 @@ def my_multi_normal(
 ) :
   return MyMultiNormalDiagFromLogScale(loc=params[0],scale=jnp.sqrt(params[1]),seed=key)#, scale=jnp.diag(params[1]))
 
-def sge_pwj(function,params,dist_builder,rng,num_samples):
+def sge_pwj(function,params,dist_builder,rng,num_samples): #j pwj = pathwise Jacobian
   #subkeys=jax.random.split(self.seed,num=num_samples)
   #print(subkeys)
   def surrogate(params):
       # We vmap the function application over samples - this ensures that the
       # function we use does not have to be vectorized itself.
-      dist = dist_builder(rng,*params)
-      return jax.vmap(function)(dist.sample((num_samples,)))
+      dist = dist_builder(rng,*params) #j builds an instance of the distribution with the given parameters (in our case of rho)
+      return jax.vmap(function)(dist.sample((num_samples,))) #j dist.sample samples from dist num_samples times
+  """
+  sge_pwj is used with scorf (the estimation of rho[r^{epsilon}(h)] with just one h), but here scorf is applied via vmap to num_samples samples of h, so we get a vector [scorf(h_1),...,scorf(h_{num_samples})] ?
+  """
   
-  return jax.jacfwd(surrogate)(params)
+  return jax.jacfwd(surrogate)(params) #j returns the Jacobian of the estimation of rho[r^{epsilon}(h)] evaluated at params todo ? no i guess a list the jacobians...
 
 
 def l_empirical_risk(A,b,arch,mask,dim,loss,eps,num_realizations=1):
-
+    '''
+    returns a function that is like empirical risk but with all the parameters except the element drawn from rho given
+    '''
     return lambda beta: empirical_risk(A,b,beta,arch,mask,dim,loss,eps,num_realizations)
 
 def r_empirical_risk(A,b,arch,mask,dim,loss,eps,num_realizations=1):
-
+    '''
+    returns a function that is like empirical val but with all the parameters except the elements drawn from rho given
+    '''
     return lambda beta: empirical_val(A,b,beta,arch,mask,dim,loss,eps,num_realizations)
 
 
 def empirical_risk(A,b,realization,arch,mask,dim,loss,eps,num_realizations=1):
-    
+    """
+    receives one element h drawn from rho and computes with it 1/m*sum_i L(h(X_i),Y_i)
+    """
+    #i num_realizations not needed?
     #print(realization.shape)          
     def pozzo(params,mask,arch):
      pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
@@ -127,6 +137,13 @@ def empirical_risk(A,b,realization,arch,mask,dim,loss,eps,num_realizations=1):
     return eU
 
 def empirical_val(A,b,realizations,arch,mask,dim,loss,eps,num_realizations=10):
+    """
+    receives several elements h_1,...,h_M drawn from rho and computes with it [1/m*sum_i L(h_1(X_i),Y_i),...,1/m*sum_i L(h_M(X_i),Y_i)]
+    
+    
+    not 1/M*sum_j 1/m*sum_i L(h_j(X_i),Y_i)
+    """
+    #i num_realizations not needed?
     
     #print(realization.shape)          
     def pozzo(params,mask,arch):
@@ -222,11 +239,16 @@ def prior(piP,num_realizations=1,seed=0):
 
 
 def pacA(piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch): #EXP ON!!
-
+    """
+    returns a function of rho that approximates the part of the PAC bound that does not need sampling from rho
+    """
     return lambda beta: pacApprox(beta,piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch)
 
 
 def pacApprox(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch):
+    """
+    approximates the part of the PAC bound that does not need sampling from rho except for some constants
+    """
 
     #STOPPED GRADIENT
   
@@ -251,7 +273,7 @@ def pacApprox(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch):
     #bound.append(bb[0]*1)
     return bb#jnp.float32(bb)
 
-def pacApproxE(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch):
+def pacApproxE(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch): #q not used anywhere?
 
     #STOPPED GRADIENT
     
@@ -268,6 +290,9 @@ def pacApproxE(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch):
     return bb
 
 def pacBound(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch):
+    """
+    approximates the part of the PAC bound that does not need sampling from rho with all constants
+    """
     p=1
     bb=0
     rhoParams=[params[0],params[1]]#jnp.diag(params[1])]
@@ -400,8 +425,19 @@ def get_loss_vector(A,b,w,arch,loss,eps=2.99):
     return r_eps#jnp.hstack([jnp.ones(r_eps.shape[0]),r_eps])
 
 
-def testing(Z,data_test,params,inp,p,c,arch,dim,Ndraws,acrit=.25,rngV=jax.random.key(0)):
-
+def testing(Z,data_test,params,inp,p,c,arch,dim,Ndraws,acrit=.25,rngV=jax.random.key(0)): #j dim apparently not needed
+  """
+  Z: STOU
+  data_test: the last cone of the complete dataset
+  params: mean and variance vectors of rho
+  inp: a(p,c)
+  p: p (length of cone)
+  c: c (speed of information propagation)
+  arch: architecture of the network
+  dim: number of weights in the network
+  Ndraws: number of members in ensemble forecast
+  acrit: critical value 
+  """
 
   #N=data_val.shape[1]
   x_size=data_test.shape[0]
@@ -438,17 +474,17 @@ def testing(Z,data_test,params,inp,p,c,arch,dim,Ndraws,acrit=.25,rngV=jax.random
           return par.flatten()[flat_idx]	
       #print(cone_mapped.shape)
       #print('val mapped',val_mapped.shape)
-      A=gather_nd(test_mapped,cone_coordinates)
+      A=gather_nd(test_mapped,cone_coordinates) #j input
       #print(it_params[0].shape,it_params[1].shape)
-      b=gather_nd(test_mapped,cone_end_coordinates)
-      w=post([it_params[0],it_params[1]],Ndraws,seed=rngV)    
+      b=gather_nd(test_mapped,cone_end_coordinates) #j output
+      w=post([it_params[0],it_params[1]],Ndraws,seed=rngV)  #j ensemble of parameters of the predictors drawn from rho
       #print(w.shape)
-      o=ffnnV(A,[inp,*arch],mask,w)
+      o=ffnnV(A,[inp,*arch],mask,w) #j ensemble forecast
       output=o.reshape((o.shape[1]))
       #print(output)
       #print(b)
       q=lambda x: (b<=x)*0 + (b>x)*1
-      s=jax.vmap(q)(output)
+      s=jax.vmap(q)(output) #j position of ground truth among ensemble forecast members
       #print(s)
       s=jnp.sum(s)
       return [output,s]          
@@ -504,7 +540,7 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
     #print(coord)  
     list_windows= jnp.array([jnp.arange(element-p,element+p+1) for element in range(p,x_size-p)]) #i appparently unneccessary
     #print(list_windows)
-    #### related to choice of the prior; fixed vs mixed setup (doesn't matter for linear predictor) - variance is either fixed or dependend on number of output nodes; mean of the prior is zero
+    #j the next lines are related to the choice of the prior; fixed vs mixed setup (doesn't matter for linear predictor) - variance is either fixed or dependend on number of output nodes; mean of the prior is always zero
     aux_in=[inp,*arch[:-1]]
     #print(aux_in)
     piScale=jnp.array([])
@@ -515,14 +551,14 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
     #rhoScale=jax.vmap(scaleInit,in_axes=(0,0))(aux_in,jnp.array(arch))
     #print(piScale)
     #rhoParams =[(jnp.ones(dim))*rhoScaling,jnp.ones((dim))*1.5]#]#jnp.array(loc),jnp.array(scale)
-    rhoParams=[jnp.ones(dim)/2,jnp.ones(dim)/(Ncones+1)]#
+    rhoParams=[jnp.ones(dim)/2,jnp.ones(dim)/(Ncones+1)] #j = [[1/2,...,1/2], [1/(Ncones+1),...,1/(Ncones+1)]] where the first list contains the means of all the parameters in the network and the second one the variances
     if piScaling!=1:
       print('fixed setup')
-      piScale=jnp.ones(dim)/piScaling
+      piScale=jnp.ones(dim)/piScaling #j in the fixed setup, all parameters have the same variance 
     else: print('mixed setup')
-#####
+    #####
 
-    piParams=[jnp.zeros(dim),piScale] #vector of means and variances, covariances between weights are considered zero (prior)
+    piParams=[jnp.zeros(dim),piScale] #j vector of means (zero) and variances (defined above), covariances between weights are considered zero
     sharded_params=jax.vmap(lambda dummy: jnp.vstack(rhoParams))(range(shard_size))
     params= [sharded_params for el in range((x_size-2*p-1)//shard_size)]##jnp.tile(jnp.hstack(rhoParams),((x_size-2*p),1)) # correct w/ cone modulation 
     #print('ps',params[0].shape)
@@ -532,21 +568,25 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
     
     #OPTIMIZER
     #opt_states=[]
-    optimizer = optax.adam(start_learning_rate)	#SGD ON
+    optimizer = optax.adam(start_learning_rate)	#SGD ON #j using ADAM as an optimizer
     #opt_state=optimizer.init(jnp.vstack(rhoParams))
     #for el in range(x_size):
     #  opt_states.append(opt_state)
     # Vectorized optimizer state init
-    opt_state_grid = [jax.vmap(optimizer.init)(sharded_params) for el in range((x_size-2*p-1)//shard_size)]
+    opt_state_grid = [jax.vmap(optimizer.init)(sharded_params) for el in range((x_size-2*p-1)//shard_size)] #j initializes the optimizer, parallelized
     #print(opt_state_grid[0])
        
     last_cone_slicing= lambda beta: lax.dynamic_index_in_dim(last_cone, beta,axis=0)
     #for x_coord in range(Ncoords):#,40):#(x_size, position=0,leave=True, desc="coordinate", colour='red'):    
     #@partial(jit,static_argnums=1)
-    time_windows=([jnp.arange(jnp.maximum(0,Z.N-Z.a*Z.Ncones*(element+1)),(Z.N-Z.a*Z.Ncones*element)) for element in range(Z.Nbatches)]) #list of arrays, each array contains temporal coordinates that go into a batch [for a fixed spatial point, contains time windows for all the batches]
-    t_slicing= lambda beta: lax.dynamic_index_in_dim(jnp.transpose(data_train), beta,axis=0) #technical function to cut dataset the way we want it (for temporal indices)
+    time_windows=([jnp.arange(jnp.maximum(0,Z.N-Z.a*Z.Ncones*(element+1)),(Z.N-Z.a*Z.Ncones*element)) for element in range(Z.Nbatches)]) #j time_windows[batchindex] is an array containing all timestamps corresponding to the batch 
+    #a list of arrays with each array corresponding to a (future) batch and containing all its timestamps [this is for a fixed x*]
+    t_slicing= lambda beta: lax.dynamic_index_in_dim(jnp.transpose(data_train), beta,axis=0) #j technical function to cut dataset the way we want it (for temporal indices)
 
     def ef(it_coord,data,params,piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch):
+        """
+        approximates/estimates the right hand side of the PAC bound with all its constants and with more samples than in the optimization routine
+        """
 
         window_mapped=jax.lax.map(d_slicing,(it_coord))#print('coord',x_coord)
         # print('shape',window_mapped.shape,batch)
@@ -569,6 +609,16 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
         return finalBound
 
     def coordit(it_coord,it_params,opt_state,batch,Bsize,slope,q,rng=rng):
+        """
+        it_coord: input argument, that d_slicing takes
+        it_params: ... the parameters that are optimized over?
+        opt_state:  ... state of the optimizer?
+        batch: index of the batch
+        B_size: ... #j = Z.Ncones*Z.a = number of cones in a batch * distance between two cones ???
+        slope: #i not needed?
+        q: for rescaling, not needed but overwritten?
+        rng: seed
+        """
         #if not x_coord%10: print('cood: ',x_coord)
         #x_coord=jnp.where(it_coord<Ncoords-p,it_coord,0)
         #print(it_coord)
@@ -586,9 +636,9 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
         #print(cone_mapped.shape)
         cone_mapped=jnp.reshape(cone_mapped,(len(it_coord),Z.a ))
         #print('shape',cone_mapped.shape)
-        Acones,bcones=Z.get_coneJ((window_mapped),sizeData=time_windows[batch].shape[0])
-        input_size,Z.m=Acones.shape
-        num_realizations=1
+        Acones,bcones=Z.get_coneJ((window_mapped),sizeData=time_windows[batch].shape[0]) #j Acones = [X_1,...,X_m], b_cones = [Y_1,...,Y_m] with m=Z.m=batchsize
+        input_size,Z.m=Acones.shape #i input_size not needed
+        num_realizations=1 #j todo number of draws with which to compute...
         #fun=(pacG(Acones,bcones,piParams,eps,delta,Z.a,Z.m,Z.alpha,Z.lambda_,dim,jnp.array([inp,*arch]),loss))  # jax.jit
         
         #Z.data=window_mapped
@@ -606,29 +656,38 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
             flat_idx=jnp.ravel_multi_index(indices.T,par.shape)
             return par.flatten()[flat_idx]	
         #print(cone_mapped.shape)
-        A=gather_nd(cone_mapped,cone_coordinates)
-        b=gather_nd(cone_mapped,cone_end_coordinates)
-        
+        A=gather_nd(cone_mapped,cone_coordinates) #j input part of validation cone
+        b=gather_nd(cone_mapped,cone_end_coordinates) #j output part of validation cone #q what is the validation cone, another one than the one I know about???
+
+        """
+        funApprox is a function of rho computing the part of the (right hand side of the) PAC bound without the empirical risk (the part which does not need sampling from rho, so funApprox(rho) it is deterministic)
+
+        rho[r^{epsilon}(h)] is estimated through 1/M sum_{j=1}^M r^{epsilon}(h_j)
+        there are two versions: 
+            one with M=1 (scorf)
+            one with M>=1 (scorfval)
+        both are functions which take h / h_1,...,h_M as arguments
+        """
         funApprox=(pacA(piParams,eps,delta,A.shape[0],Z.a,Z.m,Z.alpha,Z.lambda_,Z.p,dim,([inp,*arch])))  # jax.jit
-        sgds=[]#np.zeros((Nsteps,2,len(rhoParams[0])))
-        sges=[]#np.zeros(Nsteps)												
+        sgds=[]#np.zeros((Nsteps,2,len(rhoParams[0]))) #i not needed?
+        sges=[]#np.zeros(Nsteps)					#i not needed?				
         scorf=(l_empirical_risk(Acones[:,:],bcones[:],([inp,*arch]),mask,dim,loss,eps,num_realizations))#jax.jit
         scorfval=(r_empirical_risk(Acones[:,:],bcones[:],([inp,*arch]),mask,dim,loss,eps,num_realizations=1))#jax.jit  	
-        value,grads = jax.value_and_grad(funApprox)(it_params) #EXPERIMENTAL VERSION!!! CHANGE
+        value,grads = jax.value_and_grad(funApprox)(it_params) #EXPERIMENTAL VERSION!!! CHANGE #j funApprox(it_params) and the Jacobian of funApprox evaluated at it_params (a real value and a matrix)
         
-        jest = sge_pwj(scorf,it_params,my_multi_normal,rng,num_samples=1)# 10 is just for example, 
+        jest = sge_pwj(scorf,it_params,my_multi_normal,rng,num_samples=1)# 10 is just for example, #j an estimate of the Jacobian of rho[r^{epsilon}(h)] (i guess num_samples estimates which are taken the mean over in the next line) todo
         jest = jnp.mean((jest),axis=0)
-        updates = jest + grads *0.001
+        updates = jest + grads *0.001 #j grads is very large compared to jest, that is why it is scaled down. avoids the posterior mimicking the prior too much
         print('grad',grads,jest)#print(updates)
         #print(opt_state)
-        updates, opt_state = optimizer.update(updates,opt_state,it_params) #print(opt_state)
+        updates, opt_state = optimizer.update(updates,opt_state,it_params) #print(opt_state) #j optimizer gets track of updates, memory tracker of optimizer (needs to be done, but are not actual updates of the parameters yet)
         #print('jest',jest)	
-        it_params = optax.apply_updates(it_params,updates)
+        it_params = optax.apply_updates(it_params,updates) #j actual updates of the parameters
         #print(it_params)
         sgeVal = scorfval(post([it_params[0],it_params[1]],num_realizations=1,seed=rng)) #10
         sm=jnp.mean(sgeVal)
-        cb=value+sm #+sc
-        rng,subkey=jax.random.split(rng)
+        cb=value+sm #+sc #j cb stands for current bound, the whole right hand side of the PAC bound for the current rho
+        rng,subkey=jax.random.split(rng) #j new key is chosen (as it is common practice to not continue using the same key), its traceable as it depends on previous key
         #time_mapped_rescaled=rescalingInv(time_mapped,slope,q,eps=0.000001)
         
         #print('\nsge\t',batch+1,'\t',sm*1)
@@ -638,25 +697,25 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
         
         #A=gather_nd(cone_mapped,cone_coordinates) #rescalingInv(cone_mapped,slope,q,eps=0.000001)rescalingInv(cone_mapped,slope,q,eps=0.000001)
         #b=gather_nd(cone_mapped,cone_end_coordinates)     
-        w=post([it_params[0],it_params[1]],Ndraws,seed=rng)    
+        w=post([it_params[0],it_params[1]],Ndraws,seed=rng) #j a sample from rho (sample of the parameters of the predictors)
         #print(w.shape)
-        o=ffnnV(A,[inp,*arch],mask,w)
+        o=ffnnV(A,[inp,*arch],mask,w) #j preliminary ensemble forecast
         #print('oshape',o.shape)
         #output.append(o)
         output=o.reshape((o.shape[1]))
         #print(output)
         #print(b)
-        q=lambda x: (b<=x)*0 + (b>x)*1
-        s=jax.vmap(q)(output)
+        q=lambda x: (b<=x)*0 + (b>x)*1 #i q is also input parameter, doesnt need to be?
+        s=jax.vmap(q)(output) #j checks for each member of the ensemble forecast if the true value (b is the output value of the validation cone, our ground truth)it is smaller/equal or larger than the member
         #print(s)
-        s=jnp.sum(s)
+        s=jnp.sum(s) #j the number of members of the ensemble forecast that are smaller than the true value
         #print(s)jnp.array
         return [output,it_params,opt_state,s,Acones,bcones]
 
     #params_shards= jnp.array([jnp.arange(element,(element+shard_size)) for element in range(p,x_size-p-1,shard_size)])
     list_shards= ([jnp.array([jnp.arange(c_coord-p,c_coord+p+1) for c_coord in range(element,element+shard_size)]) for element in range(p,x_size-p-1,shard_size)]) #selecting the amount of spatial coordinates that each shard has; how big is the chunk that needs to be paralized in terms of coordinates
     print(Z.Nbatches)
-    for batch in range(1,Z.Nbatches): #optimization routine
+    for batch in range(1,Z.Nbatches): #optimization routine #j batch = batch_index
     #def batching(batch)#,params=params,opt_state=opt_state,rng=rng):: int,len(range(0,x_size,shard_size))
     #here starts a new batch init
         #subkey,rng=jax.random.split(rng)
@@ -666,12 +725,12 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
         time_mapped=jax.vmap(t_slicing)(time_windows[batch])#print('coord',x_coord) #all spatial points have same cut in time #pick the slice of data which contains the batch
         #print(time_mapped.shape)
         time_mapped=jnp.squeeze(time_mapped,axis=1)      #jnp.reshape(time_mapped,(len(it_coord),Z.Bsize),order='F')
-        shard_slicing=lambda beta: lax.dynamic_index_in_dim(time_mapped,beta,axis=1)
+        shard_slicing=lambda beta: lax.dynamic_index_in_dim(time_mapped,beta,axis=1) #i apparently not needed
         #Z.data=time_mapped
         #print(time_mapped.shape)
         #print(list_shards)
-        d_slicing= lambda beta: lax.dynamic_index_in_dim(time_mapped,beta,axis=1)  #  [,:] # see t_slicing, for spatial 
-        ccc=jax.vmap(lambda og,pmap,opt,rngM: coordit(og,pmap,opt,batch,Z.Ncones*Z.a,slope,q,rngM),in_axes=(0,0,0,0))
+        d_slicing= lambda beta: lax.dynamic_index_in_dim(time_mapped,beta,axis=1)  #  [,:] #j see t_slicing, for spatial indices
+        ccc=jax.vmap(lambda og,pmap,opt,rngM: coordit(og,pmap,opt,batch,Z.Ncones*Z.a,slope,q,rngM),in_axes=(0,0,0,0)) #j is a parallelized version of coordit (it is a function that will be applied in the for-loop below)
         #print(time_mapped[:,list_shards[0]]   )
         #window_sharded = jax.vmap(shard_slicing)(list_shards)
         #print(window_sharded.shape)
@@ -688,7 +747,13 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
           [out,params[ls_i],opt_state_grid[ls_i],pit_vals,Ac,bc]= ccc(list_shards[ls_i],params[ls_i],opt_state_grid[ls_i],keys[ls_i])#jax.jit
           output=jnp.vstack([output,out])
           params_stacked=jnp.vstack([params_stacked,params[ls_i]])
-          pit=jnp.hstack([pit,pit_vals]) #stateMap= lambda up, state : optimizer.update(up,state,it_params)
+          pit=jnp.hstack([pit,pit_vals]) 
+          """#j
+          pit contains for all x* the position of the true value (of the corresponding validation cone output) among the members of the ensemble forecast. The pit should be uniformely distributed, then the ensemble forecast is calibrated [in theory, one would need independent samples x* for which the corresponding positions should have a uniform distribution. We of course do not have independence, but checking with dependent x* is still good enough]
+
+          Uniformity is tested below using the Kolmogorov-Smirnov-test (kstest) and the Chisquare goodness of fit test (chisquare). The forecast is considered calibrated if the p-value is close to one (as uniformity is in H_0). In the future, this will be changed to a different test which has uniformity in H_1.
+          """
+          #stateMap= lambda up, state : optimizer.update(up,state,it_params)
           #updates, opt_states = jax.vmap(stateMap,zip(updates,opt_states))
           #pitdist= jnp.bincount(pit_vals,jnp.ones((x_size,))/x_size).cdf(low=0,high=51)
         #print(params_stacked .shape)

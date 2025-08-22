@@ -45,7 +45,7 @@ eps=5
 #a=[47,45,47,47,134,207]#47#3
 a=[3,3] #j here, a is chosen equal to 3 for both datasets. normally, one would choose a like in Remark 3.9
 center_pixel=100 #j not relevant (?)
-p=[1] #j one could try different values for p. - if one does, inp has to be changed!!
+p=[1] #j one could try different values for p. if one does, inp has to be changed!!
 
 def get_simulated_data(filename):
   data=loadmat(filename+'.mat')
@@ -86,6 +86,9 @@ def rescalingInv(d,slope,q,eps=0):
 
 
 def dim(net):
+  '''
+  returns number of parameters in the network
+  '''
   d=0
   for i in range(len(net)-1):
     d+=(net[i]+1)*net[i+1]
