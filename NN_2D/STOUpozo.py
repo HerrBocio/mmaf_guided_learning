@@ -43,7 +43,7 @@ def ffnnPozzo(inp,w):#,bias):
 
 
 @jit
-def ffnnLossPozzo(inp,weights,b):	
+def ffnnLossPozzo(inp,weights,b,eps):	
     #print('inp',inp)#print(arch)
     forward=lambda alpha:(ffnnPozzo(alpha,weights)) #JITTED jax.jit
     l=0
@@ -199,7 +199,7 @@ def get_posterior_ffnn(A,b,arch,dim,mask,loss,m,eps, num_realizations,mean,var,N
 def get_loss_functionGibbs(A,b,arch,loss,eps=2.99): #too nested, might embed into get_posterior_ffnn
     #print(A.shape)
     #fun_sq = lambda beta: ffnnLoss(A,arch,beta,b) 
-    fun_map = lambda beta: ffnnLossPozzo(A,beta,b) 
+    fun_map = lambda beta: ffnnLossPozzo(A,beta,b,eps) 
 
     fun_b = lambda x:  (x <= eps).astype(dtype='float32') * x + (x>eps).astype(dtype='float32')*eps
     r_eps= lambda weights : jax.vmap(fun_b)(lax.map(fun_map,weights))

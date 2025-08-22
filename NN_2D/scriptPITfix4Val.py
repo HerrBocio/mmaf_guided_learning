@@ -4,8 +4,9 @@ os.environ["CUDA_VISIBLE_DEVICES"]='1'#,2,3'#,2,3'
 #os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
-from STOUpozo import STOU
-from SGEbatchPIT import OptSGD,testing
+from NN_2D.STOUpozo import STOU
+#from STOUpozo import STOU
+from NN_2D.SGEbatchPIT import OptSGD,testing
 import numpy as np
 import h5py
 from datetime import datetime
@@ -14,13 +15,13 @@ from scipy.io import loadmat
 from scipy.stats import chisquare#kstest as kstest
 from scipy.stats import randint
 from scipy.stats import kstest
-data_path="datasets/"
+data_path="datasets_2D/"
 path='Results/piRs/'
 normalize_data=False
 use_different_eps=False
 
 #datasets=["Gaudiamonddata1A4","NIGdiamonddata1A4L","Gaudiamonddata10","NIGdiamonddata10","NIGdiamonddataBis1","NIGdiamonddata1Long"]#]
-datasetsM=['NIGdiamonddata1A4mln','Gaudiamonddata1A4mln'] #j the datasets we both predict on
+datasetsM=['NIGdiamonddata1A4','Gaudiamonddata1A4'] #j the datasets we both predict on
 #datasetsM=['Trappo']
 A_estimatedM=[3.840956,3.868912]	
 c_estimatedM=[1,1] #j actually, the estimated c's would be <1, but then the cones would be empty, so we work with c=1, which are the real values of c (with which the datasets had been created)
@@ -115,7 +116,7 @@ inp=3 #j equals a(p,c) from the paper. has to be changed if p or c change #i wri
 output=[]
 bound=[]
 #j archs is a list of different NN architectures. arch = [a_1,...,a_n] is a NN with n-1 hidden layers with the ith layer having a_i nodes. a_n is the output layer and always has to be equal to 1
-archs = [[1],[10,1],[10,10,1],[11,10,10,10,10,10,1],[60,50,30,20,10,1]] #j different NN architectures
+#archs = [[1],[10,1],[10,10,1],[11,10,10,10,10,10,1],[60,50,30,20,10,1]] #j different NN architectures
 archs= [[1]] #j only working with linear predictors
 #shard_size_p2=[196,196,98,49,28]
 shard_size=[198,198,99,66,33]#j for parallelization wrt the pixels. normally, we would have 199 pixels inside the frame, but as 199 is prime and the shard sizes (?) have to be divisors of this number, we work with 198
@@ -152,7 +153,8 @@ for i,arch in enumerate(reversed(archs)):#reversed
       #file_pir=file_data.create_group('pir'+str(pir))
       #print(file_pir.keys())
       Z = STOU(0,data,A_estimatedM[current_id],c_estimatedM[current_id],arch,N,m,a[current_id],p[0],h_t=0.05)
-      out,params,b,pit,batch,Xt= OptSGD(Z,x_size,'_',eps,delta,data,inp,p[0],c,arch,dim([inp,*arch]),Ndraws,m,Ncoords,shard_size_p2[4-i],lr,rhoScaling,slope,q,piScaling=pir,acrit=acrit) #i NCoords not needed
+      #out,params,b,pit,batch,Xt= OptSGD(Z,x_size,'_',eps,delta,data,inp,p[0],c,arch,dim([inp,*arch]),Ndraws,m,Ncoords,shard_size_p2[4-i],lr,rhoScaling,slope,q,piScaling=pir,acrit=acrit) #q shard_size_p2 ?? rhoScaling removed
+      out,params,b,pit,batch,Xt= OptSGD(Z,x_size,'_',eps,delta,data,inp,p[0],c,arch,dim([inp,*arch]),Ndraws,m,Ncoords,shard_size[4-i],lr,slope,q,piScaling=pir,acrit=acrit) #i NCoords not needed
       #outIR=rescalingInv(out,slope,q,eps=0.000001) 
       
       outV,pitV,XtV=testing(Z,last_cone,params,inp,p[0] ,c,arch,dim([inp,*arch]),Ndraws,acrit)

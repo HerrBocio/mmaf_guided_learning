@@ -9,7 +9,7 @@ import chex
 from functools import partial
 import jax.numpy as jnp
 import optax
-from STOUpozo import *
+from NN_2D.STOUpozo import *
 from scipy.stats import  chisquare #kstest as kstest
 from scipy.stats import randint
 from scipy.stats import kstest
@@ -170,7 +170,7 @@ def get_loss_function(A,b,weights,loss,eps=2.99):
     #print(A.shape)
     #fun_sq = lambda beta: ffnnLossJ(A,arch,beta,b) 
 
-    fun_map = lambda beta: ffnnLossPozzo(A,beta,b) 
+    fun_map = lambda beta: ffnnLossPozzo(A,beta,b,eps) 
 
     
     r_eps= fun_map(weights)#*m#ABS BOUNDED!
@@ -185,7 +185,7 @@ def return_loss_function(A,b,weights,loss,eps=2.99):
     #print(weights.shape)
     #fun_sq = lambda beta: ffnnLoss(A,arch,beta,b) 
 
-    fun_map = lambda beta: ffnnLossPozzo(A,beta,b) 
+    fun_map = lambda beta: ffnnLossPozzo(A,beta,b,eps) 
 
     fun_b = lambda x: (x <= eps).astype(dtype='float32') * x + (x > eps).astype(dtype='float32') * eps
     
@@ -497,7 +497,8 @@ def testing(Z,data_test,params,inp,p,c,arch,dim,Ndraws,acrit=.25,rngV=jax.random
   return output,pit,Xtesting
 
 #@jit
-def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,shard_size,lr,rhoScaling,slope,q,piScaling=1,acrit=.25):
+#def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,shard_size,lr,rhoScaling,slope,q,piScaling=1,acrit=.25): rhoScaling not needed
+def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,shard_size,lr,slope,q,piScaling=1,acrit=.25):
     """
     ...
     
