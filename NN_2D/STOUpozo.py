@@ -230,7 +230,8 @@ class STOU:
         self.arch=archs
         self.A_=A_estimated
         self.c_=c_estimated
-        self.alpha= jnp.sqrt(self.c_)*.5/self.A_
+        self.VarLevySeed_ = .5
+        self.alpha= jnp.sqrt(self.c_)*self.VarLevySeed_/self.A_
 			  #Z.A_=A_estimated[current_id]
 			  #Z.c_=c_estimated[current_id]
         self.lambda_ = self.A_ * np.minimum(2.0, self.c_) / 2*self.c_
@@ -534,5 +535,14 @@ class STOU:
             if found_value:
                 break
         # for k in range
-
         return a_final,k  
+
+    def cov_truncated(self, tau, u, r):
+        """
+        returns Cov(Z_t(x)^(r), Z_{t+tau}(x+u)^(r)) = Var(Lambda') exp(-Au) int_{A_0(0)\V_{(0,0)}^r \cap A_{tau}(u)\V__{(tau,u)}^r} exp(2As) ds
+        """
+        #r = a-p
+        int = self.c_/self.A_ * (-np.exp(-2*self.A_*r)*(tau+r+1/(2*A)) + np.exp(2*self.A_*tau)/(2*self.A_))
+
+        return self.VarLevySeed_ * np.exp(-self.A_*u) * int
+
