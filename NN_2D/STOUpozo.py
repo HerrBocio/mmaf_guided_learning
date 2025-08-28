@@ -537,12 +537,37 @@ class STOU:
         # for k in range
         return a_final,k  
 
-    def cov_truncated(self, tau, u, r):
+    def truncated_cov(self, u, tau, r):
         """
         returns Cov(Z_t(x)^(r), Z_{t+tau}(x+u)^(r)) = Var(Lambda') exp(-Au) int_{A_0(0)\V_{(0,0)}^r \cap A_{tau}(u)\V__{(tau,u)}^r} exp(2As) ds
         """
+         # the formula below works for tau<=0, u in |R. If tau>0, we have to set tau=-tau, u=-u, as Cov(Z_tau(u)^r, Z_0(0)^r) = Cov(Z_0(0)^r, Z_{-tau}(-u)^r) because of stationarity
+        if tau > 0:
+            tau = -tau
+            u = -u
         #r = a-p
-        int = self.c_/self.A_ * (-np.exp(-2*self.A_*r)*(tau+r+1/(2*A)) + np.exp(2*self.A_*tau)/(2*self.A_))
+        if tau <= -r:
+            return 0
+        int = self.c_/self.A_ * (-np.exp(-2*self.A_*r)*(tau+r+1/(2*self.A_)) + np.exp(2*self.A_*tau)/(2*self.A_))
 
         return self.VarLevySeed_ * np.exp(-self.A_*u) * int
+    
+    def truncated_covs_between_all_members_of_cone(self, h_s, h_t, r):
+        """
+        
+        """
+        distances_XY = []
+        for t in reversed(range(self.p)): # t+1 in {p, p-1, p-2, ..., 1}
+            b = np.floor(self.c_*(t+1)*h_t/h_s) # b:= argmax {a: a*h_s <= (t+1)*c*h_t}
+            distances_XY.append(jnp.array([[v, -h_t*(t+1)] for v in jnp.arange(-b*h_s, (b+1)*h_s, h_s)])) # [spatial pos, temporal pos]
+        distances_XY = jnp.concat(distances_XY, axis=0)
+        #distances = jnp.expand_dims(jnp.expand_dims(distances, 0), 0) würde zusätzliche dimension hinzufügen
+        covs_XY = jnp.array([self.truncated_cov(u=dist[0], tau=dist[1], r=r) for dist in distances_XY])
 
+        distances_XX = []
+        for t in reversed(range(self.p)): # t+1 in {p, p-1, p-2, ..., 1}
+            b = np.floor(self.c_*(t+1)*h_t/h_s) # b:= argmax {a: a*h_s <= (t+1)*c*h_t}
+            distances_XY.append(jnp.array([[v, -h_t*(t+1)] for v in jnp.arange(-b*h_s, (b+1)*h_s, h_s)])) # [spatial pos, temporal pos]
+        distances_XY = jnp.concat(distances_XY, axis=0)
+
+        return covs_XY
