@@ -552,22 +552,43 @@ class STOU:
 
         return self.VarLevySeed_ * np.exp(-self.A_*u) * int
     
+    def get_apc(self, h_s, h_t):
+        apc = 0
+        for t in reversed(range(self.p)): # t+1 in {p, p-1, p-2, ..., 1}
+            apc += 2*np.floor(self.c_*(t+1)*h_t/h_s) + 1
+        return apc # needs to be tested
+
     def truncated_covs_between_all_members_of_cone(self, h_s, h_t, r):
         """
         
         """
         distances_XY = []
         for t in reversed(range(self.p)): # t+1 in {p, p-1, p-2, ..., 1}
-            b = np.floor(self.c_*(t+1)*h_t/h_s) # b:= argmax {a: a*h_s <= (t+1)*c*h_t}
-            distances_XY.append(jnp.array([[v, -h_t*(t+1)] for v in jnp.arange(-b*h_s, (b+1)*h_s, h_s)])) # [spatial pos, temporal pos]
+            bt = np.floor(self.c_*(t+1)*h_t/h_s) # b:= argmax {a: a*h_s <= (t+1)*c*h_t}
+            distances_XY.append(jnp.array([[v, -h_t*(t+1)] for v in jnp.arange(-bt*h_s, (bt+1)*h_s, h_s)])) # [spatial pos, temporal pos]
         distances_XY = jnp.concat(distances_XY, axis=0)
         #distances = jnp.expand_dims(jnp.expand_dims(distances, 0), 0) würde zusätzliche dimension hinzufügen
         covs_XY = jnp.array([self.truncated_cov(u=dist[0], tau=dist[1], r=r) for dist in distances_XY])
 
-        distances_XX = []
+        distances_XX = [] #die nächsten zeilen nur kopiert
+        covs_XX = []
         for t in reversed(range(self.p)): # t+1 in {p, p-1, p-2, ..., 1}
-            b = np.floor(self.c_*(t+1)*h_t/h_s) # b:= argmax {a: a*h_s <= (t+1)*c*h_t}
-            distances_XY.append(jnp.array([[v, -h_t*(t+1)] for v in jnp.arange(-b*h_s, (b+1)*h_s, h_s)])) # [spatial pos, temporal pos]
-        distances_XY = jnp.concat(distances_XY, axis=0)
-
-        return covs_XY
+            bt = np.floor(self.c_*(t+1)*h_t/h_s) # bt:= argmax {a: a*h_s <= (t+1)*c*h_t}
+            dist_row = []
+            cov_row = []
+            for s in reversed(range(t)): # s+1 in {t, t-1, t-2, ..., 1}
+                bs = np.floor(self.c_*(s+1)*h_t/h_s)
+                dist_block = []
+                cov_block = []
+                for pixel1 in range(-bt,bt+1):
+                    for pixel2 in range(-bs, bs+1):
+                        dist_block.append([pixel1-pixel2, t-s]) #[spatial pos, temporal pos]
+                        cov_block.append(self.truncated_cov(u = dist_block[-1][0], tau = dist_block[-1][1], r = r))
+                dist_row.append(dist_block)
+                cov_row.append(cov_block)
+            distances_XX.append(dist_row)
+            covs_XX.append(cov_row)
+        distances_XX = jnp.array(distances_XX)
+        covs_XX = jnp.array(covs_XX)
+        return distances_XX
+        #return covs_XY, covs_XX
