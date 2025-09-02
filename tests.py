@@ -11,8 +11,8 @@ def test_covs():
 
 
 p = 2
-h_t = 1
-h_s = 1
+h_t = 0.5
+h_s = 0.5
 c=1
 distances_XY = []
 for t in reversed(range(p)): # t in {p, p-1, p-2, ..., 1, 0}
@@ -47,30 +47,25 @@ covs_XY = jnp.array([truncated_cov(u=dist[0], tau=dist[1], r=r) for dist in dist
 #print(truncated_cov(u=-1,tau=-1,r=5))
 
 c_= c
-distances_XX = [] #die nächsten zeilen nur kopiert
-covs_XX = []
+p = 3
+h_t = 0.5
+h_s = 0.5
+h_t = 1
+h_s = 1
+c=1
+
+dist_XX = []
 for t in range(p,0,-1): # t in {p, p-1, p-2, ..., 1}
     bt = int(np.floor(c_*t*h_t/h_s)) # bt:= argmax {a: a*h_s <= (t+1)*c*h_t}
-    dist_row = []
-    cov_row = []
-    for s in range(t,0,-1): # s in {t, t-1, t-2, ..., 1}
-        bs = int(np.floor(c_*s*h_t/h_s))
-        #dist_block = jnp.zeros((2*bt+1, 2*bs+1))
-        cov_block = jnp.zeros((2*bt+1, 2*bs+1))
-        dist_block = [[[pixel1-pixel2, t-s] for pixel2 in range(-bs, bs+1)] for pixel1 in range(-bt,bt+1)]
-        #for pixel1 in range(-bt,bt+1):
-        #    for pixel2 in range(-bs, bs+1):
-        #        dist_block.append([pixel1-pixel2, t-s]) #[spatial pos, temporal pos]
-        #        cov_block.append(truncated_cov(u = dist_block[-1][0], tau = dist_block[-1][1], r = r))
-        dist_row.append(dist_block)
-        cov_row.append(cov_block)
-    distances_XX.append(dist_row)
-    covs_XX.append(cov_row)
-#distances_XX = jnp.array(distances_XX)
-#covs_XX = jnp.array(covs_XX)
-for row in distances_XX:
-    for block in row:
-        for blockrow in block:
-            print(blockrow)
-        print("\n")
-    
+    for pixel1 in jnp.arange(-bt*h_s,(bt+1)*h_s, h_s):
+        dist_row = []
+        for s in range(p,0,-1):
+            bs = int(np.floor(c_*s*h_t/h_s))
+            for pixel2 in jnp.arange(-bs*h_s, (bs+1)*h_s, h_s):
+                 dist_row.append([float(pixel1-pixel2), -h_t*(t-s)])
+        dist_XX.append(dist_row)
+#dist_XX = jnp.array(dist_XX)
+for row in dist_XX:
+     print(row)
+
+#print(dist_XX)
