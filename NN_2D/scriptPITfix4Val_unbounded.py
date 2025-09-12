@@ -152,7 +152,7 @@ for i,arch in enumerate(reversed(archs)):#reversed
       
       #file_pir=file_data.create_group('pir'+str(pir))
       #print(file_pir.keys())
-      Z = STOU(0,data,A_estimatedM[current_id],c_estimatedM[current_id],arch,N,m,a[current_id],p[0],h_t=0.05)
+      Z = STOU(0,data,A_estimatedM[current_id],c_estimatedM[current_id],arch,N,m,a[current_id],p[0],h_t=0.05,h_s=0.05)
       #out,params,b,pit,batch,Xt= OptSGD(Z,x_size,'_',eps,delta,data,inp,p[0],c,arch,dim([inp,*arch]),Ndraws,m,Ncoords,shard_size_p2[4-i],lr,rhoScaling,slope,q,piScaling=pir,acrit=acrit) #q shard_size_p2 ?? rhoScaling removed
       out,params,b,pit,batch,Xt= OptSGD(Z,x_size,'_',eps,delta,data,inp,p[0],c,arch,dim([inp,*arch]),Ndraws,m,Ncoords,shard_size[4-i],lr,slope,q,piScaling=pir,acrit=acrit) #i NCoords not needed
       #outIR=rescalingInv(out,slope,q,eps=0.000001) 

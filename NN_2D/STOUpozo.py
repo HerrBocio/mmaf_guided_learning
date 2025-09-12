@@ -208,7 +208,7 @@ def get_loss_functionGibbs(A,b,arch,loss,eps=2.99): #too nested, might embed int
 
 
 class STOU:
-    def __init__(self,x_position,data,A_estimated,c_estimated,archs,N,Ncones=1,a=1,p=1,num_realizations=20,h_t=0.05): #,model
+    def __init__(self,x_position,data,A_estimated,c_estimated,archs,N,Ncones=1,a=1,p=1,num_realizations=20,h_t=0.05,h_s=0.05): #,model
         """
         Initializes STOU model
         :param x_position: coordinate to be investigated
@@ -226,6 +226,7 @@ class STOU:
 
         self.num_realizations=num_realizations
         self.h_t=h_t
+        self.h_s=h_s
           
         self.arch=archs
         self.A_=A_estimated
@@ -239,6 +240,7 @@ class STOU:
         self.N=N
         self.a=a
         self.p=p
+        self.r=a-p
         self.Ncones=Ncones
         Bsize=int(self.a*self.Ncones)
         #print(Bsize)
@@ -246,6 +248,7 @@ class STOU:
         self.lastBatch=self.N % self.Bsize
         self.Nbatches=jnp.floor(self.N/self.Bsize).astype('int16')
         
+        self.thetatilder = jnp.sqrt(self.VarLevySeed_*(self.c_*self.r/self.A_ + self.c_/(2*self.A_^2)))*jnp.exp(-self.A_*self.r)
         
     def infer_beta(self,num=10000): #
         #print(self.sampler.n_c)
@@ -537,7 +540,7 @@ class STOU:
         # for k in range
         return a_final,k  
 
-    def truncated_cov(self, u, tau, r):
+    def truncated_cov(self, u, tau):
         """
         returns Cov(Z_t(x)^(r), Z_{t+tau}(x+u)^(r)) = Var(Lambda') exp(-Au) int_{A_0(0)\V_{(0,0)}^r \cap A_{tau}(u)\V__{(tau,u)}^r} exp(2As) ds
         """
@@ -546,43 +549,46 @@ class STOU:
             tau = -tau
             u = -u
         #r = a-p
-        if tau <= -r:
+        if tau <= -self.r:
             return 0
-        int = self.c_/self.A_ * (-np.exp(-2*self.A_*r)*(tau+r+1/(2*self.A_)) + np.exp(2*self.A_*tau)/(2*self.A_))
+        int = self.c_/self.A_ * (-np.exp(-2*self.A_*self.r)*(tau+self.r+1/(2*self.A_)) + np.exp(2*self.A_*tau)/(2*self.A_))
 
         return self.VarLevySeed_ * np.exp(-self.A_*u) * int
     
-    def get_apc(self, h_s, h_t):
+    def get_apc(self):
         apc = 0
         for t in reversed(range(self.p)): # t+1 in {p, p-1, p-2, ..., 1}
-            apc += 2*np.floor(self.c_*(t+1)*h_t/h_s) + 1
+            apc += 2*np.floor(self.c_*(t+1)*self.h_t/self.h_s) + 1
         return apc # needs to be tested
 
-    def truncated_covs_between_all_members_of_cone(self, h_s, h_t, r):
+    def truncated_covs_between_all_members_of_cone(self):
         """
         
         """
         distances_XY = []
         for t in reversed(range(self.p)): # t+1 in {p, p-1, p-2, ..., 1}
-            bt = np.floor(self.c_*(t+1)*h_t/h_s) # b:= argmax {a: a*h_s <= (t+1)*c*h_t}
-            distances_XY.append(jnp.array([[v, -h_t*(t+1)] for v in jnp.arange(-bt*h_s, (bt+1)*h_s, h_s)])) # [spatial pos, temporal pos]
+            bt = np.floor(self.c_*(t+1)*self.h_t/self.h_s) # b:= argmax {a: a*h_s <= (t+1)*c*h_t}
+            distances_XY.append(jnp.array([[v, -self.h_t*(t+1)] for v in jnp.arange(-bt*self.h_s, (bt+1)*self.h_s, self.h_s)])) # [spatial pos, temporal pos]
         distances_XY = jnp.concat(distances_XY, axis=0)
-        covs_XY = jnp.array([self.truncated_cov(u=dist[0], tau=dist[1], r=r) for dist in distances_XY])
+        covs_XY = jnp.array([self.truncated_cov(u=dist[0], tau=dist[1]) for dist in distances_XY])
 
         distances_XX = []
         covs_XX = []
         for t in range(self.p,0,-1): # t in {p, p-1, p-2, ..., 1}
-            bt = int(np.floor(self.c_*t*h_t/h_s)) # bt:= argmax {a: a*h_s <= (t+1)*c*h_t}
-            for pixel1 in jnp.arange(-bt*h_s,(bt+1)*h_s, h_s):
+            bt = int(np.floor(self.c_*t*self.h_t/self.h_s)) # bt:= argmax {a: a*h_s <= (t+1)*c*h_t}
+            for pixel1 in jnp.arange(-bt*self.h_s,(bt+1)*self.h_s, self.h_s):
                 dist_row = []
                 cov_row = []
                 for s in range(self.p,0,-1):
-                    bs = int(np.floor(self.c_*s*h_t/h_s))
-                    for pixel2 in jnp.arange(-bs*h_s, (bs+1)*h_s, h_s):
-                        dist_row.append([float(pixel1-pixel2), -h_t*(t-s)])
-                        cov_row.append(self.truncated_cov(u = float(pixel1-pixel2), tau = -h_t*(t-s), r = r))
+                    bs = int(np.floor(self.c_*s*self.h_t/self.h_s))
+                    for pixel2 in jnp.arange(-bs*self.h_s, (bs+1)*self.h_s, self.h_s):
+                        dist_row.append([float(pixel1-pixel2), -self.h_t*(t-s)])
+                        cov_row.append(self.truncated_cov(u = float(pixel1-pixel2), tau = -self.h_t*(t-s), r = r))
                 distances_XX.append(dist_row)
                 covs_XX.append(cov_row)
         covs_XX = jnp.array(covs_XX)
         
         return covs_XY, covs_XX
+
+    def calc_covs(self):
+        self.covs = self.truncated_covs_between_all_members_of_cone()

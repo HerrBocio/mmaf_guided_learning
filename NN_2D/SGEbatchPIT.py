@@ -246,21 +246,39 @@ def pacA(piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch,unbounded): #EXP 
         return lambda beta: pacApproxUnbounded(beta,piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch)
     return lambda beta: pacApprox(beta,piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch)
 
-def pacApproxUnbounded(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch): #j works only for linear predictors so far!
-    """
-    approximates the part of the unbounded case PAC bound that does not need sampling from rho except for some constants
-    """
-    bb=0
+################## j's bound
+
+def constantsInUnboundedPAC(thethatilder, m, delta, covs):
+    Var = covs[1][0][0] # nochmal checken, aber das müsste Var sein (auf der Diagonalen von covs_XX)
+    return thethatilder *(1+1/delta) + jnp.log(1/delta)/jnp.sqrt(m) + Var/(2*jnp.sqrt(m)) # should be it
+
+def KLInUnboundedPAC(params, piParams, m, arch):
     rhoParams=[params[0],params[1]]
     piParams=[piParams[0],piParams[1]]
     NNsize=dimComp(arch)
-    kl=KLdiag(piParams,rhoParams,NNsize)
-    theta=0 #todo
-    bb= (1./jnp.sqrt(m))*kl+jnp.sqrt((eps*delta*theta/m)*kl)
-    #print('\n\tbound ',bb*1)
-    #bound.append(bb[0]*1)
-    return bb#jnp.float32(bb)
+    KL=KLdiag(piParams,rhoParams,NNsize)
+    return KL/jnp.sqrt(m) # should be it
 
+def rhoSamplingInUnboundedPAC(A,b,realizations,arch,mask,dim,loss,eps,num_realizations=10):
+    """
+    approximates the part of the unbounded case PAC bound that does require sampling from rho
+    """
+    #hier weitermachen        
+    def pozzo(params,mask,arch):
+     pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
+     return pozzo
+    wojtyla= lambda a: pozzo(a,mask,arch)
+  
+    realizations=jax.vmap(wojtyla)(realizations)
+    empR=lambda beta : return_loss_function(A,b,beta,loss,eps)
+    #realization=post(rhoParams)#,num_realizations=20)
+    #print(realization.shape)
+    eU=empR(realizations)
+    return eU
+    
+
+
+################ end j's bound
 
 def pacApprox(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch):
     """
@@ -304,21 +322,6 @@ def pacApproxE(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch): #q 
     #print(jnp.exp(-lambda_*(a-p)))#lambda gamma: 
     bb= (1./jnp.sqrt(m))*kl+jnp.sqrt((eps*delta*theta)*2*kl)
     #print(bb)
-    return bb
-
-def pacBoundUnbounded(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch): #todo, only for linear predictors so far
-    """
-    approximates the part of the unbounded case PAC bound that does not need sampling from rho with all constants
-    """
-    p=1
-    bb=0
-    rhoParams=[params[0],params[1]]#jnp.diag(params[1])]
-    piParams=[piParams[0],piParams[1]]#jnp.diag(piParams[1])]
-    NNsize=dimComp(arch)
-    bb= 2*(jnp.log(delta))/jnp.sqrt(m) + (.5*eps**2)/jnp.sqrt(m)
-    kl=KLdiag(piParams,rhoParams,NNsize)
-    theta=(naiveLip(prior(piParams),arch)*a_p_c+1)  #lambda gamma: 
-    bb= (1./jnp.sqrt(m))*kl+jnp.sqrt((eps*delta*theta/m)*kl)
     return bb
 
 def pacBound(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch):
@@ -641,7 +644,7 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
         finalBound= sm + pacBound(params,piParams,eps,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch)    
         return finalBound
 
-    def coordit(it_coord,it_params,opt_state,batch,Bsize,slope,q,unbounded,rng=rng):
+    def coordit(it_coord,it_params,opt_state,batch,Bsize,slope,q,covs,unbounded,rng=rng):
         """
         it_coord: input argument, that d_slicing takes
         it_params: ... the parameters that are optimized over?
@@ -763,7 +766,8 @@ def OptSGD(Z,x_size,loss,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncoords,s
         #print(time_mapped.shape)
         #print(list_shards)
         d_slicing= lambda beta: lax.dynamic_index_in_dim(time_mapped,beta,axis=1)  #  [,:] #j see t_slicing, for spatial indices
-        ccc=jax.vmap(lambda og,pmap,opt,rngM: coordit(og,pmap,opt,batch,Z.Ncones*Z.a,slope,q,unbounded,rngM),in_axes=(0,0,0,0)) #j is a parallelized version of coordit (it is a function that will be applied in the for-loop below)
+        Z.calc_covs()
+        ccc=jax.vmap(lambda og,pmap,opt,rngM: coordit(og,pmap,opt,batch,Z.Ncones*Z.a,slope,q,Z.covs,unbounded,rngM),in_axes=(0,0,0,0)) #j is a parallelized version of coordit (it is a function that will be applied in the for-loop below)
         #print(time_mapped[:,list_shards[0]]   )
         #window_sharded = jax.vmap(shard_slicing)(list_shards)
         #print(window_sharded.shape)
