@@ -348,7 +348,7 @@ def pacBoundE(params,piParams,eps,delta,a_p_c,a,m,alph,lambda_,p,dim,arch):
     bb= 2*(jnp.log(delta))/jnp.sqrt(m) + (.5*eps**2)/jnp.sqrt(m)
     kl=KLdiag(piParams,rhoParams,NNsize)
     theta=(naiveLip(prior(piParams),arch)*a_p_c+1)*alph*jnp.exp(-lambda_*(a-p))  #lambda gamma: 
-    bb= (1./jnp.sqrt(m))*kl+jnp.sqrt(((eps*delta*theta/m)*2*kl))
+    bb= (1./jnp.sqrt(m))*kl+jnp.sqrt(((eps*delta*theta)*2*kl)) #theta/m??
     return bb
   
 def KLdiag(piParams,rhoParams,NNsize):
