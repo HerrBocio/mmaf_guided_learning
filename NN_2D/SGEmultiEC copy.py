@@ -315,23 +315,6 @@ def pac_approx(piParams,rhoParams,NNsize,m,Lip,a_p_c):
 
     return KLdiag_from_log_scale(piParams,rhoParams,NNsize)*1./jnp.sqrt(m) + jnp.sqrt((Lip*a_p_c+1)*KLdiag_from_log_scale(piParams,rhoParams,NNsize)/m)
 
-def target_func_unbounded(piParams,rhoParams,NNsize,m):
-   return KLdiag(piParams,rhoParams,NNsize)/jnp.sqrt(m) + target_func_unbouded_sampling_from_rho() # ist KLdiag richtig oder from_logscale???
-
-#def target_func_unbouded_sampling_from_rho(): # TODO
-def fun(A,b,realization,arch,mask,dim,loss,eps):
-  def pozzo(params,mask,arch):
-      pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
-      return pozzo
-  realization=pozzo(realization,mask,arch)
-
-  empR=lambda beta : get_loss_function(A,b,beta,loss,eps)
-  eU=empR(realization)
-  return eU
-
-
-def pac_unbounded(): # TODO ist target_func_unbounded plus die Konstanten
-   pass
 
 def pac_mc_allester(piParams,rhoParams,NNsize,m,Lip,a_p_c,delta):
 
