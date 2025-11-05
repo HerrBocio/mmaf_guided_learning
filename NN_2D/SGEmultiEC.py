@@ -318,9 +318,21 @@ def pac_approx(piParams,rhoParams,NNsize,m,Lip,a_p_c):
 def target_func_unbounded(piParams,rhoParams,NNsize,m):
    return KLdiag(piParams,rhoParams,NNsize)/jnp.sqrt(m) + target_func_unbouded_sampling_from_rho() # ist KLdiag richtig oder from_logscale???
 
-def target_func_unbouded_sampling_from_rho(A,b,realization,arch,mask): # TODO
+def target_func_unbouded_sampling_from_rho(A,b,rhoParams,dim,arch,mask,theta, VarZtrx): # TODO
+  realization = 0
   tf = empirical_risk(A,b,realization,arch,mask,0,0,bounded=False)
   apc = 3#A[0].shape[0]
+  m= A.shape[0]
+  Liph = LipC(rhoParams,dim,mask,arch) # evtl parallelisieren
+  E_rho_Liph = jnp.mean(Liph)
+  E_rho_Liph_sq = jnp.mean(jnp.power(Liph,2))
+  abs_E_hX = [jnp.abs(jnp.mean(h(A))) for h in realization] #h(A)..........
+  E_rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liph))
+  E_rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
+  tf += apc*E_rho_Liph*(theta + VarZtrx)
+  tf += E_rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
+  tf += apc * theta / jnp.sqrt(m) * E_rho_abs_E_hX_Liph
+  tf += E_rho_hXsq/(2*jnp.sqrt(m))
 
 
   def pozzo(params,mask,arch):
