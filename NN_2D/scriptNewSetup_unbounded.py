@@ -15,7 +15,12 @@ from scipy.io import loadmat
 from scipy.stats import chisquare#kstest as kstest
 from scipy.stats import randint
 from scipy.stats import kstest
-data_path="../datasets/" #/LOCAL/prol/
+import os
+print(os.getcwd())
+
+
+data_path="datasets_2D/" #/LOCAL/prol/
+#data_path="../datasets_2D/" #/LOCAL/prol/
 path='/LOCAL/prol/s_data/results/preT'
 
 #path='/afs/tu-chemnitz.de/project/calibration/s_data/results/'
@@ -59,7 +64,7 @@ def makeh5(net,hdata,names,path):
   #file_.close()
 
 
-datasetsM= ['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']#
+datasetsM= ['Gaudiamonddata1A4','NIGdiamonddata1A4']#
 ids=[0]
 A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
 c_estimatedM=[1,1]

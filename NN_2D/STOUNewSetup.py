@@ -43,7 +43,7 @@ def ffnnPozzo(inp,w):#,bias):
 
 
 @jit
-def ffnnLossPozzo(inp,weights,b,eps):	
+def ffnnLossPozzo(inp,weights,b,eps,bounded=True):	
     #print(eps)#print('inp',inp)#print(arch)
     forward=lambda alpha:(ffnnPozzo(alpha,weights)) #JITTED jax.jit
     fun_b = lambda x: (x <= eps).astype(dtype='float32') * x + (x > eps).astype(dtype='float32') * eps
@@ -54,7 +54,8 @@ def ffnnLossPozzo(inp,weights,b,eps):
     #print(forward_mapped-b)
     l=jax.vmap(jnp.abs)(forward_mapped-b)
     #print('l abs',l.shape)
-    l=jax.vmap(fun_b)(l)
+    if bounded:
+        l=jax.vmap(fun_b)(l)
     #print('l shape',l.shape)
     l=jnp.mean(l)#-b
     #print('tipo:' l.shape)
@@ -253,7 +254,9 @@ class STOU:
         self.lastBatch=N_last_cones*self.a # self.N % self.Bsize
         self.Nbatches=jnp.floor(self.N/self.Bsize).astype('int16')
 
-        self.thetatilder = jnp.sqrt(self.VarLevySeed_*(self.c_*self.r/self.A_ + self.c_/(2*self.A_^2)))*jnp.exp(-self.A_*self.r)
+        self.VarLevySeed_ = 0.5
+        self.r=self.a - self.p
+        self.thetatilder = jnp.sqrt(self.VarLevySeed_*(self.c_*self.r/self.A_ + self.c_/(2*self.A_**2)))*jnp.exp(-self.A_*self.r)
         
         
     def infer_beta(self,num=10000): #

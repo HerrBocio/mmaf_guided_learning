@@ -141,7 +141,7 @@ def r_empirical_risk(A,b,arch,mask,dim,eps):
     return lambda beta: empirical_val(A,b,beta,arch,mask,dim,eps)
 
 
-def empirical_risk(A,b,realization,arch,mask,dim,eps):
+def empirical_risk(A,b,realization,arch,mask,dim,eps,bounded=True):
     
     #print(realization.shape) 
     #print(mask)
@@ -157,7 +157,7 @@ def empirical_risk(A,b,realization,arch,mask,dim,eps):
     #print(realization[-1].shape)
     #print(A.shape)
     #print('realShape',realization.shape)
-    empR=lambda beta : get_loss_function(A,b,beta,eps)
+    empR=lambda beta : get_loss_function(A,b,beta,eps,bounded)
     #realization=post(rhoParams)#,num_realizations=20)
     #print(realization.shape)
     eU=empR(realization)
@@ -167,7 +167,7 @@ def empirical_risk(A,b,realization,arch,mask,dim,eps):
     #print(type(eU))
     return eU
 
-def empirical_val(A,b,realization,arch,mask,dim,eps):
+def empirical_val(A,b,realization,arch,mask,dim,eps,bounded=True):
     
     #print(realization.shape)          
     def pozzo(params,mask,arch):
@@ -176,7 +176,7 @@ def empirical_val(A,b,realization,arch,mask,dim,eps):
     masking= lambda a: pozzo(a,mask,arch)
   
     realization=jax.vmap(masking)(realization)
-    empR=lambda beta : return_loss_function(A,b,beta,eps)
+    empR=lambda beta : return_loss_function(A,b,beta,eps,bounded)
     #realization=post(rhoParams)#,num_realizations=20)
     #print(realization.shape)
     eU=empR(realization)
@@ -186,7 +186,7 @@ def empirical_val(A,b,realization,arch,mask,dim,eps):
 
 #does it make sense to differentiate prior and posterior, when both are gaussian
 
-def get_loss_function(A,b,weights,eps):
+def get_loss_function(A,b,weights,eps,bounded=True):
 
 
     r_eps=0
@@ -194,7 +194,7 @@ def get_loss_function(A,b,weights,eps):
     #print(A.shape)
     #fun_sq = lambda beta: ffnnLossJ(A,arch,beta,b) 
 
-    fun_map = lambda beta: ffnnLossPozzo(A,beta,b,eps) 
+    fun_map = lambda beta: ffnnLossPozzo(A,beta,b,eps,bounded) 
 
     #fun_b = lambda x: (x <= eps).astype(dtype='float32') * x + (x > eps).astype(dtype='float32') * eps
     
@@ -204,14 +204,14 @@ def get_loss_function(A,b,weights,eps):
     return r_eps
     
  
-def return_loss_function(A,b,weights,eps):
+def return_loss_function(A,b,weights,eps,bounded=True):
 
     r_eps=0
 
     #print(weights.shape)
     #fun_sq = lambda beta: ffnnLoss(A,arch,beta,b) 
 
-    fun_map = lambda beta: ffnnLossPozzo(A,beta,b,eps) 
+    fun_map = lambda beta: ffnnLossPozzo(A,beta,b,eps,bounded) 
 
     
     r_eps= jax.vmap(fun_map)(weights)#jax.lax(fun_map,weights,batch_size=b.shape[0]/10)))
@@ -318,17 +318,17 @@ def pac_approx(piParams,rhoParams,NNsize,m,Lip,a_p_c):
 def target_func_unbounded(piParams,rhoParams,NNsize,m):
    return KLdiag(piParams,rhoParams,NNsize)/jnp.sqrt(m) + target_func_unbouded_sampling_from_rho() # ist KLdiag richtig oder from_logscale???
 
-#def target_func_unbouded_sampling_from_rho(): # TODO
-def fun(A,b,realization,arch,mask,dim,loss,eps):
+def target_func_unbouded_sampling_from_rho(A,b,realization,arch,mask): # TODO
+  tf = empirical_risk(A,b,realization,arch,mask,0,0,bounded=False)
+  apc = 3#A[0].shape[0]
+
+
   def pozzo(params,mask,arch):
       pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
       return pozzo
   realization=pozzo(realization,mask,arch)
 
-  empR=lambda beta : get_loss_function(A,b,beta,loss,eps)
-  eU=empR(realization)
-  return eU
-
+  return tf
 
 def pac_unbounded(): # TODO ist target_func_unbounded plus die Konstanten
    pass
