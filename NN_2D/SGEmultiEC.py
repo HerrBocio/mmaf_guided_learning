@@ -145,6 +145,8 @@ def empirical_risk(A,b,realization,arch,mask,dim,eps,bounded=True):
     
     #print(realization.shape) 
     #print(mask)
+    jax.debug.print("realization = {}", realization)
+    jax.debug.print("realizationshape = {}", realization.shape)
     def pozzo(params,mask,arch):
      #print(params)
      pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
@@ -165,6 +167,8 @@ def empirical_risk(A,b,realization,arch,mask,dim,eps,bounded=True):
     #c=np.mean(eU)
     #print("n_c: ",c).
     #print(type(eU))
+    #jax.debug.print("A{}", A)
+    #jax.debug.print("b: {}", b)
     return eU
 
 def empirical_val(A,b,realization,arch,mask,dim,eps,bounded=True):
@@ -318,15 +322,23 @@ def pac_approx(piParams,rhoParams,NNsize,m,Lip,a_p_c):
 def target_func_unbounded(piParams,rhoParams,NNsize,m):
    return KLdiag(piParams,rhoParams,NNsize)/jnp.sqrt(m) + target_func_unbouded_sampling_from_rho() # ist KLdiag richtig oder from_logscale???
 
-def target_func_unbouded_sampling_from_rho(A,b,rhoParams,dim,arch,mask,theta, VarZtrx): # TODO
-  realization = 0
+def target_func_unbounded_KL(piParams,rhoParams,NNsize,m):
+   return KLdiag_from_log_scale(piParams,rhoParams,NNsize)/jnp.sqrt(m)
+   
+
+def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,mask,theta, VarZtrx,m): 
   tf = empirical_risk(A,b,realization,arch,mask,0,0,bounded=False)
-  apc = 3#A[0].shape[0]
-  m= A.shape[0]
+
+  def pozzo(params,mask,arch):
+      pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
+      return pozzo
+  realization=pozzo(realization,mask,arch)
+  hX = ffnnPozzo(A,realization)
+  apc = A.shape[0]
   Liph = LipC(rhoParams,dim,mask,arch) # evtl parallelisieren
   E_rho_Liph = jnp.mean(Liph)
   E_rho_Liph_sq = jnp.mean(jnp.power(Liph,2))
-  abs_E_hX = [jnp.abs(jnp.mean(h(A))) for h in realization] #h(A)..........
+  abs_E_hX = [jnp.abs(jnp.mean(hx)) for hx in hX]
   E_rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liph))
   E_rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
   tf += apc*E_rho_Liph*(theta + VarZtrx)
@@ -334,13 +346,10 @@ def target_func_unbouded_sampling_from_rho(A,b,rhoParams,dim,arch,mask,theta, Va
   tf += apc * theta / jnp.sqrt(m) * E_rho_abs_E_hX_Liph
   tf += E_rho_hXsq/(2*jnp.sqrt(m))
 
-
-  def pozzo(params,mask,arch):
-      pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
-      return pozzo
-  realization=pozzo(realization,mask,arch)
-
   return tf
+
+def tf_unbounded(A,b,rhoParams,dim,arch,mask,theta, VarZtrx,m):
+   return lambda beta: target_func_unbouded_sampling_from_rho(A,b,beta,rhoParams,dim,arch,mask,theta, VarZtrx,m)
 
 def pac_unbounded(): # TODO ist target_func_unbounded plus die Konstanten
    pass
@@ -484,7 +493,7 @@ def KLdiag_from_log_scale(piParams,rhoParams,NNsize):
 
 
 
-def LipC(piParams,dim,mask,arch,shard_size=int(5e2),N=int(1e3)):
+def LipC(piParams,dim,mask,arch,shard_size=1,N=1):#=int(5e2),N=int(1e3)):
 
     #print(w.shape)
     #print(arch)
@@ -803,6 +812,314 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         
         val_grad=pac_mapped(it_params)
         grad= jax.grad(pac_mapped)(it_params)
+        #print(KLdiag_from_log_scale(piParams,it_params,dim))
+        #value,grads = jax.value_and_grad(funApprox)(it_params) #EXPERIMENTAL VERSION!!! CHANGE
+        val_jest,jest = sge_pwj(scorf,it_params,my_multi_normal,rng)
+        #print('\n',jest,grad) 
+        #jest = jnp.mean((jest),axis=0)
+        #print('1',jest)
+        #jest2 = sge_pwj_2(scorf,it_params,my_multi_normal,rng,num_samples=5)
+        #jest2= jnp.mean(jest2,axis=0)
+        #print('2',jest2)
+        #rint(jnp.allclose(jest,jest2))
+        #print('diff',jest-jest2)
+        updates = jest+grad
+        #print(updates)#print(updates)
+        #print(opt_state)
+        updates, opt_state = optimizer.update(updates,opt_state,it_params) #print(opt_state)
+        #print('jest',jest)	
+        it_params = optax.apply_updates(it_params,updates)
+        #print(it_params,jnp.prod(it_params[0]),jnp.prod(it_params[1]))
+        
+        return [it_params,opt_state,Acones,bcones,val_jest,val_grad]
+
+    
+    countit=0
+    #best_params=[]
+    min_it=0
+    min_error=jnp.inf
+    milestone_seeds=[]
+    val_jest_epoch= jnp.empty((Z.Nbatches,x_size-2*Z.c_*Z.p))
+    val_grad_epoch= jnp.empty((Z.Nbatches,x_size-2*Z.c_*Z.p))
+    #print(Z.Nbatches)
+    for epoch in trange(1,epochs+1, desc='epochs', colour='green'): #range(1,epochs+1):
+        #print('EPOCH: ', epoch)
+        file_epoch= file_m.create_group('epoch'+str(epoch))
+        val_jest_batch= jnp.empty((0,x_size-2*Z.c_*Z.p))
+        val_grad_batch= jnp.empty((0,x_size-2*Z.c_*Z.p))
+      
+        for batch in range(Z.Nbatches): #trange(1, Z.Nbatches, desc='batching', colour='red'):
+            #key = jax.random.PRNGKey(batch)
+            countit+=1
+            #print('in batch')#,countit)
+            if countit>maxit: break
+            key = jax.random.PRNGKey(batch+Z.Nbatches*(epoch-1))
+            keys = [jax.random.split(key*(el+1), shard_size).reshape(shard_size, 2) for el in range((x_size-2*p*c)//shard_size)]
+            time_mapped=jax.vmap(t_slicing)(time_windows[batch])
+            time_mapped=jnp.squeeze(time_mapped,axis=1)     
+            shard_slicing = lambda beta: lax.dynamic_index_in_dim(time_mapped,beta,axis=1)
+            d_slicing = lambda beta: lax.dynamic_index_in_dim(time_mapped,beta,axis=1)  #  [,:]
+            
+            ccc = jax.vmap(lambda og,pmap,opt,rngM: coordit(og,pmap,opt,batch,Z.Ncones*Z.a,Z.Ncones,dim,Lip,inp,rngM),in_axes=(0,0,0,0))
+    
+            output = jnp.transpose(jax.vmap(lambda dummy: jnp.array([]))(range(Ndraws)))
+            #Ac_stacked = jnp.transpose(jax.vmap(lambda dummy: jnp.array([]))(range(inp)))
+            #bc_stacked = pit=jnp.array([])
+              
+            
+            val_jest_stacked= jnp.array([])
+            val_grad_stacked= jnp.array([])
+            params_stacked =jnp.transpose(jax.vmap(lambda dummy:jnp.array([[],[]]))(range(dim)))
+            for ls_i in range((x_size-2*p*c)//shard_size):
+              #print('a')
+              [params[ls_i],opt_state_grid[ls_i],Acones_s[ls_i],bcones_s[ls_i],val_jest,val_grad]= ccc(list_shards[ls_i], params[ls_i], opt_state_grid[ls_i], keys[ls_i])#jax.jit
+              
+              params_stacked=jnp.vstack([params_stacked,params[ls_i]])
+              val_jest_stacked=jnp.hstack([val_jest_stacked,val_jest])
+              val_grad_stacked=jnp.hstack([val_grad_stacked,val_grad])
+
+            val_jest_batch= jnp.vstack([val_jest_batch,val_jest_stacked])
+            val_grad_batch= jnp.vstack([val_grad_batch,val_grad_stacked])
+      
+        val_jest_epoch=jnp.vstack([val_jest_epoch,val_jest_batch])
+        val_grad_epoch=jnp.vstack([val_grad_epoch,val_grad_batch])
+
+        if countit>maxit: break
+        #print('out of b')
+        # assuming each epoch is a milestone epoch 
+        milestone_train_error = jnp.array([])
+        #multi_e_f_stacked=jnp.empty((0,Ndraws,Ncones_test-1))
+        b_c_e_stacked=jnp.empty((0,Ncones_test-1))
+        test_error = jnp.array([])
+        bound_train = jnp.array([])
+        bound_test = jnp.array([])
+      
+        milestone_seeds.append(jax.random.key(epoch))
+
+        test_slicing = lambda beta: lax.dynamic_index_in_dim(data_test,beta,axis=0)
+        finalStep=lambda coord,beta: multi_ef(coord, beta,Z.a,inp, arch,mask,Ndraws,Ncones_test-1,milestone_seeds[-1])
+
+#(it_params,A_c_e,b_c_e,dim,arch,mask,piParams,eps,Lip,delta,a_p_c,a,m,alpha,lambda_,p,rng,num_realization=int(1e3)):
+        #print((x_size-2*p*c)//shard_size)
+        e_mapped_train= jax.vmap(lambda  it_pars,it_A,it_b: error(it_pars,it_A,it_b,dim,[inp,*arch],mask,piParams,eps,Lip,delta,inp,Z.a,Z.Ncones,Z.alpha,Z.lambda_,Z.p,milestone_seeds[-1]))
+        e_mapped_test = jax.vmap(lambda  it_pars,it_A,it_b: error(it_pars,it_A,it_b,dim,[inp,*arch],mask,piParams,eps,Lip,delta,inp,Z.a,Ncones_test-1,Z.alpha,Z.lambda_,Z.p,milestone_seeds[-1]))
+        for ls_i in range((x_size-2*p*c)//shard_size): #might opt for an alternative shard_size
+              mile_train_e,pac_train = e_mapped_train(params[ls_i],Acones_s[ls_i],bcones_s[ls_i])
+              milestone_train_error=jnp.hstack([milestone_train_error,mile_train_e])
+              bound_train = jnp.hstack([bound_train,pac_train])
+          
+              A_c_e,b_c_e=jax.vmap(finalStep)(list_shards[ls_i],params[ls_i]) #save b_c_e_stacked
+              #multi_e_f_stacked=jnp.vstack([multi_e_f_stacked,multi_e_f])
+              b_c_e_stacked=jnp.vstack([b_c_e_stacked,b_c_e])
+              test_e,pac_test= e_mapped_test(params[ls_i],A_c_e,b_c_e)
+              test_error=jnp.hstack([test_error,test_e])   
+              bound_test = jnp.hstack([bound_test,pac_test])  
+
+        #print(bound_train.shape)
+        if jnp.mean(bound_train+milestone_train_error,axis=0)<min_error: 
+          #print('new minimum',min_error)
+          min_it=epoch
+          min_error=jnp.mean(bound_train+milestone_train_error,axis=0)
+          best_params=params_stacked
+        #print(bound_test)      
+        hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train,milestone_train_error,test_error,bound_test,val_jest_batch,val_grad_batch,b_c_e_stacked]
+        names=[ 'a','lambda', 'm', 'bound_train', 'train_errors','test_errors','bound_test','val_jest','val_grad','cones_test']
+        makeh5(file_epoch,hdata,names)
+
+    file_last=file_m.create_dataset('last params',data=params_stacked)
+    
+    file_best=file_m.create_group('min')
+    file_best.create_dataset('min_error',data=min_error)
+    file_best.create_dataset('min iteration',data=min_it)
+    file_best.create_dataset('best params',data=best_params)
+        
+
+def Optimization_unbounded(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncones_test,Ncoords,shard_size,lr,rhoScaling,slope=1,q=0,epochs=1,maxit=jnp.inf,piScaling=1,acrit=.25):
+
+    struct=[inp,*arch]
+    #print('MC reduced, low epochs,alternative initialization (ones,ones/2)')
+    #print('no stopping gradient, pericolo di morte')
+    print('number of epochs: ', epochs)
+    print('maximum of ',maxit,' iterations')
+    #print('NO BIAS')
+    mask=[0]
+    s=0  
+    for el in range(len(struct)-1):
+       s+= (struct[el]+1)*struct[el+1]
+       mask.append(s)
+       #print(mask)
+
+    if rescaling:
+      print('rescaling between [-1,1]')
+      data,pinv,qinv=rescalingU1(data)
+      file_m.create_dataset('slope',data=pinv)
+      file_m.create_dataset('quota',data=qinv)
+    #print('minmax',np.amin(data),np.amax(data))
+    data_test=data[:,-(Ncones_test-1)*Z.a:] 
+    #print('data test',data_test.shape)
+    data_train=data[:,:-Z.a*Ncones_test]
+    data_pretraining = data_train[:,-1001*Z.a:] # extra cone for the last point 
+    #print(data_pretraining.shape)
+    file_m.create_dataset('data_test',data=data_test)
+  
+    N=data_train.shape[1]
+    x_size=data_train.shape[0]
+    #print('in otp',x_size)
+    list_windows= jnp.array([jnp.arange(element-c*p,element+c*p+1) for element in range(c*p,x_size-c*p)])
+    preT_d_slicing= lambda beta: lax.dynamic_index_in_dim(data_pretraining,beta,axis=0) 
+    #print('in sgd',x_size)
+    #time.sleep(10)
+    
+	#trange(Ndraws, position=0, desc="r", leave=True, colour='green'):
+
+    pretraining_mean= jnp.zeros(dim)
+    # PRETRAINING
+    if preT:
+      print('pretraining')
+      pretraining = jax.vmap(lambda preT_coord: coordit_pretraining(Z,preT_coord,preT_d_slicing,Z.a,Z.c_,Z.p,[inp,*arch],mask,dim,eps))
+      
+      pretraining_mean,w0,preT_emp_risk = pretraining(list_windows) 
+      print('saving preT_ER')
+      file_m.create_dataset('pretraining ER',data=preT_emp_risk)
+    #print('w0',w0[0,:,:].shape)
+    # PAC-BAYES BOUND OPTIMIZATION
+  
+    coord = []
+    rng = jax.random.key(0)
+    #output = np.array(np.zeros((Ncoords,Ndraws)))
+    output=[]
+    for t in reversed(range(p)): #parallelize!!!
+        coord.append(jnp.array([[v, - (t + 1)] for v in range(-c*(t + 1), c*(t + 1) + 1)]))
+    coord = jnp.concat(coord, axis=0)
+    coord = jnp.expand_dims(jnp.expand_dims(coord, 0), 0)
+    
+    bounds=[]
+    pars=[]
+ 
+    aux_in=[inp,*arch[:-1]]
+
+    piScale=jnp.array([])
+    for in_,out_ in zip(aux_in,arch):
+      layer=jnp.ones((in_+1)*out_)/in_
+      piScale=jnp.hstack([piScale,layer])
+
+
+    if piScaling!=1:
+      print('fixed setup, posterior with zero mean')
+      piScale=jnp.ones(dim)*piScaling
+    else: 
+        print('mixed setup, post erior with zero mean')
+    
+    if preT:
+      
+      pretraining_fun = jax.vmap(lambda beta: jnp.vstack([beta,jnp.ones(dim)*jnp.linalg.norm(beta,ord=1)]))
+      pretraining_parameters = pretraining_fun(pretraining_mean)
+      #pretraining_parameters = list(pretraining_parameters.reshape(((x_size-2*p*c)//shard_size,shard_size,2,dim))))
+      params=[pretraining_parameters[el*shard_size:(el+1)*shard_size] for el in range((x_size-2*p*c)//shard_size) ]
+      #print('preT_params',params)
+      #pretraining_fun_prior = jax.vmap(lambda beta: jnp.vstack([beta,jnp.ones(dim)*piScale]))
+      #piParams_preT = pretraining_fun_prior(w0)#SET BACK GRID SEARCH INIT!!!
+      #piParams = [piParams_preT[el*shard_size:(el+1)*shard_size] for el in range((x_size-2*p*c)//shard_size) ]
+      piParams = [w0[0,0,:],piScale]
+      
+    else:
+      rhoParams=[jnp.zeros(dim),jnp.ones(dim)*jnp.log(.25)] #jnp.ones(dim)/2
+      sharded_params=jax.vmap(lambda dummy: jnp.vstack(rhoParams))(range(shard_size))
+      params= [sharded_params for el in range((x_size-2*p*c)//shard_size)]   
+      piParams=[jnp.zeros(dim),piScale]
+      
+    start_learning_rate = jnp.float32(lr)
+
+    print('computing Lipschitz constant... ')
+    Lip= LipC(piParams,dim,mask,[inp,*arch])
+    print(Lip)
+    #jax.clear_caches()
+
+    Acones_dummy = jnp.zeros((Ncones,inp))
+    bcones_dummy = jnp.zeros(Ncones)
+    
+    sharded_Acones = jax.vmap(lambda dummy: jnp.vstack(Acones_dummy))(range(shard_size))
+    Acones_s = [sharded_Acones for el in range((x_size-2*p*c)//shard_size)] 
+
+    sharded_bcones = jax.vmap(lambda dummy: jnp.vstack(bcones_dummy))(range(shard_size))
+    bcones_s = [sharded_bcones for el in range((x_size-2*p*c)//shard_size)] 
+
+    #print('shape in sharding ')
+    #print(sharded_Acones.shape)
+    #print(sharded_bcones.shape)
+    
+    #OPTIMIZER
+    #opt_states=[]
+    optimizer = optax.adam(start_learning_rate)	#SGD ON
+    #opt_state=optimizer.init(jnp.vstack(rhoParams))
+    #for el in range(x_size):
+    #  opt_states.append(opt_state)
+    # Vectorized optimizer state init
+    if preT:
+      opt_state_grid= [jax.vmap(optimizer.init)(el) for el in params]
+    else:
+      opt_state_grid = [jax.vmap(optimizer.init)(sharded_params) for el in range((x_size-2*p*c)//shard_size)]
+    #print(opt_state_grid[0])
+    #for x_coord in range(Ncoords):#,40):#(x_size, position=0,leave=True, desc="coordinate", colour='red'):    
+    #@partial(jit,static_argnums=1)
+    time_windows=([jnp.arange(jnp.maximum(0,Z.N-Z.a*Z.Ncones*(element+1)),(Z.N-Z.a*Z.Ncones*element)) for element in range(Z.Nbatches)])
+    t_slicing= lambda beta: lax.dynamic_index_in_dim(jnp.transpose(data_train), beta,axis=0)
+    #params_shards= jnp.array([jnp.arange(element,(element+shard_size)) for element in range(p,x_size-p-1,shard_size)])
+    list_shards= ([jnp.array([jnp.arange(c_coord-p*c,c_coord+p*c+1) for c_coord in range(element,element+shard_size)]) for element in range(p*c,x_size-p*c,shard_size)])
+    #print('N batches=',Z.Nbatches)
+
+    def multi_ef(it_coord,params,a,inp,arch,mask,Ndraws,Ncones_test,rng):
+
+        test_mapped=jax.lax.map(test_slicing,(it_coord))#print('coord',x_coord)
+        #print('shape',test_mapped.shape,batch)
+        test_mapped=jnp.reshape(test_mapped,(len(it_coord),a*Ncones_test))
+        #print(test_mapped.shape)
+        Ac,bc=Z.get_coneJ((test_mapped),sizeData=test_mapped.shape[1])
+        #print(Ac.shape)
+        #w=post([params[0],params[1]],Ndraws,seed=rng)    
+        #print(w.shape)
+        #out=jax.vmap(lambda A : ffnnV(A,[inp,*arch],mask,w))
+        #m_e_f = out(jnp.transpose(Ac))
+        #m_e_f = m_e_f.reshape((Ndraws,Ncones_test))
+        #print('mef',m_e_f.shape)
+        
+        
+        return [Ac,bc] #m_e_f,
+
+    def coordit(it_coord,it_params,opt_state,batch,Bsize,m,dim,Lip,inp,rng=rng):
+        #if not x_coord%10: print('cood: ',x_coord)
+        #x_coord=jnp.where(it_coord<Ncoords-p,it_coord,0)
+        #Z.data=data
+        #print(it_params.shape[0])
+        #it_params=jnp.reshape(it_params,(2,int(it_params.shape[0]/2)))
+        #print('in init coord')   ####################################################
+        #print(it_coord)
+        window_mapped=jax.vmap(d_slicing)(it_coord)#print('coord',x_coord)
+        #print('shape',window_mapped.shape)
+        window_mapped=jnp.reshape(window_mapped,(len(it_coord),Bsize))
+        #print('shape',window_mapped.shape)
+        
+        #print(cone_mapped.shape)
+        #print('shape',cone_mapped.shape)
+        Acones,bcones=Z.get_coneJ((window_mapped),sizeData=time_windows[batch].shape[0])
+        #print('shape in coordit ',Acones.shape,bcones.shape)
+        input_size,Z.m=Acones.shape
+        
+        sgds=[]#np.zeros((Nsteps,2,len(rhoParams[0])))
+        sges=[]#np.zeros(Nsteps)					
+        #print(eps)
+        theta = Z.thetatilder
+        VarZtrx = Z.truncated_covs_between_all_members_of_cone()[1][0][0]
+        scorf=tf_unbounded(Acones,bcones,it_params,dim,arch,mask,theta,VarZtrx,m) #jax.jit
+        #scorfval=r_empirical_risk(Acones[:,:],bcones[:],([inp,*arch]),mask,dim,eps)
+        #grads= pac_gradient(piParams,it_params,dim,m,Lip,inp)
+
+        kl_mapped = lambda beta: target_func_unbounded_KL(piParams,beta,dim,m) # TODO NNsize scheint nicht benötigt, idk ob dim == NNsize
+        
+        #pac_mapped= lambda beta : pac_mc_allester(piParams,beta,dim,m,Lip,inp,delta)
+        
+        val_grad=kl_mapped(it_params)
+        grad= jax.grad(kl_mapped)(it_params)
         #print(KLdiag_from_log_scale(piParams,it_params,dim))
         #value,grads = jax.value_and_grad(funApprox)(it_params) #EXPERIMENTAL VERSION!!! CHANGE
         val_jest,jest = sge_pwj(scorf,it_params,my_multi_normal,rng)

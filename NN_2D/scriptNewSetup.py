@@ -14,6 +14,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
 data_path="../datasets/" #/LOCAL/prol/
+data_path="datasets_2D/" #/LOCAL/prol/
 #path='/LOCAL/prol/s_data/results/nopreT'
 
 path='/afs/tu-chemnitz.de/project/calibration/debug/'

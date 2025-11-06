@@ -5,7 +5,7 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
 from STOUNewSetup import STOU
-from SGEmultiEC import Optimization
+from SGEmultiEC import Optimization_unbounded
 import numpy as np
 import h5py
 import time
@@ -64,7 +64,7 @@ def makeh5(net,hdata,names,path):
   #file_.close()
 
 
-datasetsM= ['Gaudiamonddata1A4','NIGdiamonddata1A4']#
+datasetsM= ['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']#
 ids=[0]
 A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
 c_estimatedM=[1,1]
@@ -121,7 +121,7 @@ piRescaling=[1./110, 1./130, 1./150, 1./170, 1./190, 1./210] #  1./10, 1./30, 1.
 piRescaling= np.log(piRescaling)
 print(piRescaling)
 
-pretraining=[True]
+pretraining=[False]
 
 if pretraining[0]:
     Epochs=[150]#,50]
@@ -169,7 +169,7 @@ for l_,boolean in enumerate(pretraining):
           
                     Z = STOU(0,data,A_estimatedM[current_id],c_estimatedM[current_id],arch,N-m_test*a_val[current_id],m_test-1,m,a_val[current_id],p,1,h_t[0])
                       
-                    Optimization(file_m,Z,x_size,boolean,rescaling,eps,delta,data,inp,p,c,arch,dim([inp,*arch]),Ndraws,m,m_test,Ncoords,shard_size[i], lr, rhoScaling, epochs=Epochs[l_], piScaling=pir, acrit=acrit)
+                    Optimization_unbounded(file_m,Z,x_size,boolean,rescaling,eps,delta,data,inp,p,c,arch,dim([inp,*arch]),Ndraws,m,m_test,Ncoords,shard_size[i], lr, rhoScaling, epochs=Epochs[l_], piScaling=pir, acrit=acrit)
                     
                     file_.close()
   

@@ -39,10 +39,10 @@ def ffnnPozzo(inp,w):#,bias):
        #print('ax',x.shape)
     #print('s',jnp.matmul(x,w[-1][:-1,:]))
     return jnp.matmul(x,w[-1][:-1,:])
-    
 
 
-@jit
+
+#@jit
 def ffnnLossPozzo(inp,weights,b,eps,bounded=True):	
     #print(eps)#print('inp',inp)#print(arch)
     forward=lambda alpha:(ffnnPozzo(alpha,weights)) #JITTED jax.jit
@@ -61,6 +61,8 @@ def ffnnLossPozzo(inp,weights,b,eps,bounded=True):
     #print('tipo:' l.shape)
     #l=jnp.abs(l)
     return l
+
+ffnnLossPozzo = jit(ffnnLossPozzo, static_argnames=('bounded',))   
 
 
 def ffnnV(inp,arch,mask,weights):
@@ -233,6 +235,7 @@ class STOU:
 
         self.num_realizations=num_realizations
         self.h_t=h_t
+        self.h_s=self.h_t
           
         self.arch=archs
         self.A_=A_estimated
@@ -610,7 +613,7 @@ class STOU:
                     bs = int(np.floor(self.c_*s*self.h_t/self.h_s))
                     for pixel2 in jnp.arange(-bs*self.h_s, (bs+1)*self.h_s, self.h_s):
                         dist_row.append([float(pixel1-pixel2), -self.h_t*(t-s)])
-                        cov_row.append(self.truncated_cov(u = float(pixel1-pixel2), tau = -self.h_t*(t-s), r = r))
+                        cov_row.append(self.truncated_cov(u = float(pixel1-pixel2), tau = -self.h_t*(t-s)))
                 distances_XX.append(dist_row)
                 covs_XX.append(cov_row)
         covs_XX = jnp.array(covs_XX)
