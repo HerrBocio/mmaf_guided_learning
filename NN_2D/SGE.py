@@ -8,6 +8,8 @@ from jax import jit
 import jax.numpy as jnp
 import optax
 from STOU import *
+from utils import * 
+from sge_utils import *
 from scipy.stats import randint
 from tqdm import trange,tqdm
 #from optax._src import wrappers,utils
@@ -17,133 +19,7 @@ import os
 #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 #os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'#,2,3'
 #os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
-
-
-
-def get_simulated_data(filename):
-    data=loadmat(filename+'.mat')
-    data=data["data"]
-
-    #data=data-np.mean(data)
-    #data=data/np.std(data)
-
-    return data
-
-def rescalingU1(d,eps=0):
-  m=np.amin(d) 
-  M=np.amax(d)
-  #p=(1-2*eps)/(M-m)
-  #q=(M*eps-(1-eps)*m)/(M-m)
-  p=2/(M-m)
-  q=(m+M)/(m-M)
-  return d*p+q,p,q
-
-def rescalingU0(d,eps=0):
-  m=np.amin(d)
-  M=np.amax(d)
-  p=(1-2*eps)/(M-m)
-  q=(M*eps-(1-eps)*m)/(M-m)
-  return d*p+q,p,q
-
   
-def rescalingInv(d,slope,q,eps=0):
-
-  return (d - q)/slope
-
-
-class MyMultiNormalDiagFromLogScale:	
-#to be placed in a specific script (collect other distros?)
-#rewrite class wrt to functional syntax
-  """
-  Class of multivariate normal distribution.
-  Currently supports only distribution w/ diagonal covariance matrix  
-  """
-
-  def __init__(self, loc, nu,seed):
-    '''
-    Class constructor
-    Inputs: 
-          loc: mean
-          nu: log scale
-          seed: random PNRG key
-    '''
-    
-    self._var = jnp.exp(nu)
-    self._log_scale = nu /2
-    self._mean = loc
-    self._param_shape = self._mean.shape
-    self.seed=seed
-    
-
-  def sample(self, sample_size):
-    '''
-    Method for sampling sample_size times from the distribution
-    '''
-    
-    subkeys=jax.random.split(self.seed,num=sample_size)
-    sample_shape = self._param_shape
-    sam=jax.vmap(lambda k : jax.random.normal(k, shape=sample_shape) * jnp.exp(self._log_scale) + (self._mean) )(subkeys)
-    return sam
-
-  def log_prob(self, x):
-    '''
-    Method for computing the log density of the distribution
-    '''
-    log_prob = jax.scipy.stats.multivariate_normal.logpdf(x,mean=self._mean, cov=jnp.diag(self._scale))
-    sum_axis = [-(i + 1) for i in range(len(self._param_shape))]
-    return jnp.sum(log_prob)
-    
-
-def my_multi_normal(key,*params,) :
-  '''
-  Function that instantiates the class MyMultiNormalDiagFromLogScale 
-  '''
-  return MyMultiNormalDiagFromLogScale(loc=params[0],nu=params[1],seed=key)#, scale=jnp.diag(params[1]))
-
-def sge_pwj(score_function,params,dist_builder,rng,num_samples=1):
-  '''
-  Function that computes the pathwise gradient estimator for a generic distribution
-  Input:
-      score_function: score function
-      params: parameters of the distribution
-      dist_builder: function that calls the instantiation of the distribution class
-      rng: random PRNG key
-      num_samples: number of samples from the distribution
-  Output:
-      val: value of the expected score function estimator
-      grad: stochastic gradient estimator
-  '''
-  def surrogate(params):
-      # We vmap the function application over samples - this ensures that the
-      # function we use does not have to be vectorized itself.
-      dist = dist_builder(rng,*params)
-      eu=jax.vmap(score_function)(dist.sample((num_samples,)))
-      return jnp.mean(eu)
-
-  val=surrogate(params)
-  grad=jax.grad(surrogate)(params)
-  return [val,grad]
-
-def sge_pwj_2(function,params,dist_builder,rng,num_samples=1):
-  '''
-  Function that computes the score function gradient estimator for a generic distribution
-  Input:
-      score_function: score function
-      params: parameters of the distribution
-      dist_builder: function that calls the instantiation of the distribution class
-      rng: random PRNG key
-      num_samples: number of samples from the distribution
-  '''   
-  def surrogate(params):
-      # We vmap the function application over samples - this ensures that the
-      # function we use does not have to be vectorized itself.
-      dist = dist_builder(rng,*params)
-      return (jax.vmap(function)(dist.sample((num_samples,))))
-
-
-  
-  return jax.grad(surrogate)(params)
-
 
 
 def l_empirical_risk(A,b,arch,mask,dim,eps):
@@ -209,35 +85,7 @@ def return_loss_function(A,b,weights,eps):
     r_eps= jax.vmap(fun_map)(weights) 
     return r_eps	 
 
-def dimComp(archs):
-	'''
-	Computes the size of the network
-	Input:
-		archs: layer structure of the network
-	'''
-	dim=0
-	for i in range(len(archs)-1):
-		dim = dim + (archs[i]*(archs[i+1])+archs[i+1])
-	return dim
 
-
-
-def dist_sample(rhoP,num_realizations=1,seed=1):
-    
-    '''
-    Function that samples from a multivariate normal distribution
-    Input:
-        rhoP: parameters of the distribution to sample from
-        num_realizations: number of draws to sample from the distribution
-        seed: random PRNG key
-    Output:
-        Sam: array of the distribution samples
-    '''
-    
-    sample_shape = (num_realizations,*rhoP[0].shape)#tuple(num_realizations) + rhoP[0].shape jax.random.key(seed)
-    sam=jax.random.normal(seed, shape=sample_shape) * jnp.exp(rhoP[1]/2) + rhoP[0]
-
-    return sam
     
 
 def truePAC(params,piParams,eps,Lip,delta,a_p_c,m,alph,p,dim,arch,chi):
@@ -300,23 +148,6 @@ def pacBound(params,piParams,eps,Lip,delta,a_p_c,a,m,alph,lambda_,p,dim,arch):
     return bb
 
 
-def KLdiag_grad(piParams,rhoParams,NNsize):
-    '''
-    Function that computes the gradient of the Kullback-Leibler divergence between two multivariate diagonal gaussian distribution
-    Input:
-        piParams: parameters of the reference distribution
-        rhoParams: parameters of the generalised posterior distribution
-        NNsize: parameter dimension
-    '''
-    piParams0=piParams[0]
-    piParams1=piParams[1]
-    rhoParams0=rhoParams[0]
-    rhoParams1=rhoParams[1]
-
-    grad = lambda pip0,pip1,rhop0,rhop1: jnp.array([(rhop0-pip0)/pip1,.5*(1./pip1-1./rhop1)]) #(rhop0-pip0)/pip1
-    gradient= jax.vmap(grad)(piParams0,piParams1,rhoParams0,rhoParams1)
-    return jnp.transpose(gradient)
-
 def pac_gradient(piParams,rhoParams,NNsize,m,Lip,a_p_c):
     '''
     Function that computes the gradient of the second term of the linearised pac bound
@@ -351,133 +182,8 @@ def pac_mc_allester(piParams,rhoParams,NNsize,m,Lip,a_p_c,delta):
     #mc allester-like bound 
     return jnp.sqrt( (KLdiag_from_log_scale(piParams,rhoParams,NNsize) + jnp.log(m*delta)) /(2*(m-1))  ) + jnp.sqrt((Lip*a_p_c+1)*KLdiag_from_log_scale(piParams,rhoParams,NNsize)/m)
 
-def chi2_diag_gaussians(piParams,rhoParams):
-    """
-    Function that computes the chi-squared divergence between two gaussian distributions
-    Input:
-      piParams: parameters of the reference distribution
-      rhoParams: parameters of the generalised posterior distribution
-    """
-    mu_p = rhoParams[0]
-    var_p = rhoParams[1]
-    mu_q = piParams[0]
-    var_q = piParams[1]
-    mu_p = jnp.array(mu_p)
-    mu_q = jnp.array(mu_q)
-    var_p = jnp.array(var_p)
-    var_q = jnp.array(var_q)
-    delta2 = (mu_p - mu_q)**2
-    denom = var_p * (2*var_q - var_p)
-    Ii = var_q / jnp.sqrt(denom) * jnp.exp(delta2 / (2*var_q - var_p))
-    prod = jnp.prod(Ii)
-    return prod 
 
-  
-def KLdiag(piParams,rhoParams,NNsize):
     
-    '''
-    computes the KL divergence for two multivariate gaussians
-    
-
-    Parameters
-    ----------
-    piParams: parameters of the reference distribution
-    rhoParams: parameters of the generalised posterior distribution
-      
-    Returns
-    kl: computation of the divergence
-    -------
-    
-    '''
-    
-    piParams0=piParams[0]
-    piParams1=piParams[1]
-    rhoParams0=rhoParams[0]
-    rhoParams1=rhoParams[1]
-    inv=lambda beta: 1./beta
-    kl=jnp.dot(jax.vmap(inv)(piParams1),rhoParams1) 
-    kl= kl - NNsize
-    diff=piParams0-rhoParams0
-    prod=lambda a,b: a*b
-    kl= kl + jnp.dot(diff,jax.vmap(prod)(jax.vmap(inv)(piParams1),diff)) 
-    kl=kl + jnp.sum(jax.vmap(jnp.log)(piParams1)) 
-    kl=kl - jnp.sum(jax.vmap(jnp.log)(rhoParams1)) 
-    return kl
-    
-
-def KLdiag_from_log_scale(piParams,rhoParams,NNsize):
-    
-    '''
-    computes the KL divergence for two multivariate gaussians
-    
-
-    Parameters
-    ----------
-    piParams: parameters of the reference distribution
-    rhoParams: parameters of the generalised posterior distribution
-    NNsize: parameters dimension
-    Returns
-    kl: computation of the divergence
-    -------
-    None.
-    '''
-    piParams0=piParams[0] 
-    piParams1=piParams[1] 
-    rhoParams0=rhoParams[0] 
-    rhoParams1=rhoParams[1]
-    inv=lambda beta: 1./beta
-    kl= jnp.sum(jnp.exp(rhoParams1-piParams1)-1)
-    diff=piParams0-rhoParams0
-    prod=lambda a,b: a*b
-    kl= kl + jnp.dot(diff,jax.vmap(prod)(jnp.exp(-piParams1),diff)) #matmul
-    kl=kl + jnp.sum(piParams1) 
-    kl=kl - jnp.sum(rhoParams1) 
-    return kl
-    
-
-
-
-def LipC(piParams,dim,mask,arch,shard_size=int(5e2),N=int(1e3)):
-
-    '''
-    Computes the estimation of the Lipchitz constant for a ffnn
-    Input:
-        piParams: parameters of the reference distribution
-        dim: network size
-        mask: network layers structure
-    Output L
-    '''
-
-  
-    realizations = dist_sample(piParams,num_realizations=N,seed=jax.random.key(0))
-    realizations=realizations.reshape((N//shard_size,shard_size,dim))
-  
-    def pozzo(params,mask,arch):
-     
-     pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
-     return pozzo
-
-    parPozzo=lambda alpha: pozzo(alpha,mask,arch)
-    def naiveLip(weights):
-      prod=1
-      for el in weights:
-        prod*=jnp.amax(jnp.abs(el))           #jnp.linalg.norm(el,ord=2)
-      return prod
-    L=0
-    for el in realizations:
-      w=jax.vmap(parPozzo)(el)
-
-      c=jax.vmap(naiveLip)(w)
-      L+= jnp.sum(c)
-      
-    L=L/N
-    return L
-  
-  
-def rescalingInv(d,slope,q,eps=0):
-  
-  return (d - q)/slope
-
 
 
 def error(it_params,A_c_e,b_c_e,dim,arch,mask,piParams,eps,Lip,delta,a_p_c,a,m,alpha,lambda_,p,rng,shard_size=int(5e2),N=int(1e3)):
@@ -542,15 +248,6 @@ def coordit_pretraining(Z,preT_coord,preT_d_slicing,a,c,p,arch,mask,dim,eps,init
   preT_val=jax.vmap(scorf)(w)
   return w,w0,preT_val
 
-def makeh5(net,hdata,names):
-
-  '''
-  Takes as input the h5 file pointer, data to be stored and the respective names
-  Creates and stores data structures in an (already defined!) h5 group
-  '''
-  for j in range(len(names)):
-    net.create_dataset(names[j],data=hdata[j])
-
 
 
 #@jit
@@ -560,18 +257,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
     Performs the MMAF optimization routine 
     '''
   
-    struct=[inp,*arch]
-     
-    print('number of epochs: ', epochs)
-
-
-    #computes the parameter masking of the architecture
-    mask=[0]
-    s=0  
-    for el in range(len(struct)-1):
-       s+= (struct[el]+1)*struct[el+1]
-       mask.append(s)
-    
+    mask = mask_gen(inp,arch)
 
     if rescaling:
       print('rescaling between [-1,1]')

@@ -6,15 +6,13 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 
 from STOU import STOU
 from SGE import Optimization
+from utils import *
 import numpy as np
 import h5py
 import time
 from datetime import datetime
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
-from scipy.stats import chisquare#kstest as kstest
-from scipy.stats import randint
-from scipy.stats import kstest
 data_path="../datasets/" #/LOCAL/prol/
 #path='/LOCAL/prol/s_data/results/nopreT'
 
@@ -25,35 +23,6 @@ path='/afs/tu-chemnitz.de/project/calibration/debug/'
 # This script launches the optimization routine for synthetic data GauA4 and NIGA4
 # The hyperparameters A,c,lambda_ are already estimated
 
-normalize_data=False
-use_different_eps=False
-
-def create_folder(new_path):
-  if not os.path.exists(new_path):
-    os.makedirs(new_path)
-    print("folder created")
-
-def get_simulated_data(filename):
-  data=loadmat(filename+'.mat')
-  data=data["data"]
-  return data
-
-def rescalingU(d,eps=0):
-  m=np.amin(d)
-  M=np.amax(d)
-  p=(1-2*eps)/(M-m)
-  q=(M*eps-(1-eps)*m)/(M-m)
-  return d*p+q,p,q
-
-def rescalingInv(d,slope,q,eps=0):
-
-  return (d - q)/slope
-
-def dim(net):
-  d=0
-  for i in range(len(net)-1):
-    d+=(net[i]+1)*net[i+1]
-  return d
 
 datasetsM= ['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']#
 ids=[1]
@@ -79,7 +48,7 @@ for i in range(len(datasetsM)):
   print(l)
   lambda_.append(l)
 
-  a= np.ceil(- np.log(0.025/(2*eps*m_batches[0]))/l + p )
+  a= np.ceil(- np.log(0.025/(2*eps*m_batches))/l + p )
   a_val.append(int( a) )
 
 print('a val',a_val,lambda_)
@@ -108,14 +77,14 @@ filename=day+'_full_relu_std'
 for l_,boolean in enumerate(pretraining): 
   #loops over pretraining choice
   if boolean:
-      Epochs=[150]
-      pretraining_labels=['_preT']
+      Epochs=150
+      pretraining_labels='_preT'
   else:
-      Epochs=[60]
-      pretraining_labels=['']
+      Epochs=60
+      pretraining_labels=''
   for i,arch in enumerate(archs): # reversed
     #loops over architectures
-    print(arch,dim([inp,*arch]))
+    print(arch,dimComp([inp,*arch]))
     for current_id in range(len(datasetsM)):
       #loops over datasets
       print(datasetsM[current_id]) 
@@ -129,8 +98,9 @@ for l_,boolean in enumerate(pretraining):
         print('prior=',pir)
         pathPrior=path+'prior'+str(piScalingLabel[k])+'var/'
         create_folder(pathPrior)
+        file_ = h5py.File(pathPrior+day+filename+pretraining_labels +str(dimComp([inp,*arch]))+'_' +str(datasetsM[current_id]) +'_a' +str(a_val) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5','w')
         file_m=file_.create_group('m'+str(m_batches))
-        print('m=',m)
+        print('m=',m_batches)
         Z = STOU(A_estimatedM[current_id],c_estimatedM[current_id],arch,N-m_test*a_val[current_id],m_test-1,m_batches,a_val[current_id],p,h_t[0])
-        Optimization(file_m,Z,x_size,boolean,rescaling,eps,delta,data,inp,p,c,arch,dim([inp,*arch]),Ndraws,m_batches,m_test,Ncoords,shard_size[i], lr, epochs=Epochs[l_], piScaling=pir)
+        Optimization(file_m,Z,x_size,boolean,rescaling,eps,delta,data,inp,p,c,arch,dimComp([inp,*arch]),Ndraws,m_batches,m_test,Ncoords,shard_size[i], lr, epochs=Epochs, piScaling=pir)
         file_.close()
