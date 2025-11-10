@@ -7,7 +7,8 @@ from numpy.random import default_rng
 import netCDF4 as nc
 from scipy.optimize import newton
 
-from STOUNewSetup import STOU,variogram,estimation, modello_teoricoSTOU, modello_teoricoMSTOU
+from STOU import *
+from variogram import *
 from SGE3d_EC import Optimization
 import numpy as np
 import h5py
