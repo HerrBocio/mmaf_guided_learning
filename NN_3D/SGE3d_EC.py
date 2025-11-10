@@ -5,11 +5,11 @@ from jax import lax
 from jax import random
 import jax
 from jax import jit
-import chex
+#import chex
 from functools import partial
 import jax.numpy as jnp
 import optax
-from STOUNewSetup import *
+from STOU import *
 
 from scipy.stats import randint
 from tqdm import trange,tqdm
