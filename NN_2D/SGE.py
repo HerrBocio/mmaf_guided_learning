@@ -469,7 +469,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
 
         theta = Z.thetatilder
         VarZtrx = Z.truncated_covs_between_all_members_of_cone()[1][0][0]
-        scorf=tf_unbounded(Acones,bcones,it_params,dim,arch,mask,theta,VarZtrx,m)
+        scorf=tf_unbounded(Acones,bcones,it_params,dim,([inp,*arch]),mask,theta,VarZtrx,m)
 
         #computes the second term of the obj function (containing the divergence terms)
         kl_mapped = lambda beta: target_func_unbounded_KL(piParams,beta,dim,m) # TODO NNsize scheint nicht benötigt, idk ob dim == NNsize

@@ -27,7 +27,7 @@ def ffnn_forward_pass(inp,w):#,bias):
        x=jax.vmap(activation)(x)  #activation
     return jnp.matmul(x,w[-1][:-1,:])
 
-@jit
+#@jit
 def ffnn_loss_forward_pass(inp,weights,b,eps,bounded=True):	
     '''
     Computes montecarlo estimator for the empirical risk of the training data 
@@ -43,6 +43,7 @@ def ffnn_loss_forward_pass(inp,weights,b,eps,bounded=True):
     l=jnp.mean(l)#-b
     return l
 
+ffnn_loss_forward_pass = jit(ffnn_loss_forward_pass, static_argnames=('bounded',))   
 
 def ffnnV(inp,arch,mask,weights):
       
