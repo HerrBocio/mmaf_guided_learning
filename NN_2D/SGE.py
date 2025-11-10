@@ -20,7 +20,40 @@ import os
 #os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'#,2,3'
 #os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
   
+def target_func_unbounded(piParams,rhoParams,NNsize,m):
+   return KLdiag(piParams,rhoParams,NNsize)/jnp.sqrt(m) + target_func_unbouded_sampling_from_rho() # ist KLdiag richtig oder from_logscale???
 
+def target_func_unbounded_KL(piParams,rhoParams,NNsize,m):
+   return KLdiag_from_log_scale(piParams,rhoParams,NNsize)/jnp.sqrt(m)
+   
+
+def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,mask,theta, VarZtrx,m): 
+  tf = empirical_risk(A,b,realization,arch,mask,0,0,bounded=False)
+
+  def pozzo(params,mask,arch):
+      pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
+      return pozzo
+  realization=pozzo(realization,mask,arch)
+  hX = ffnn_forward_pass(A,realization)
+  apc = A.shape[0]
+  Liph = LipC(rhoParams,dim,mask,arch) # evtl parallelisieren
+  E_rho_Liph = jnp.mean(Liph)
+  E_rho_Liph_sq = jnp.mean(jnp.power(Liph,2))
+  abs_E_hX = [jnp.abs(jnp.mean(hx)) for hx in hX]
+  E_rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liph))
+  E_rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
+  tf += apc*E_rho_Liph*(theta + VarZtrx)
+  tf += E_rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
+  tf += apc * theta / jnp.sqrt(m) * E_rho_abs_E_hX_Liph
+  tf += E_rho_hXsq/(2*jnp.sqrt(m))
+
+  return tf
+
+def tf_unbounded(A,b,rhoParams,dim,arch,mask,theta, VarZtrx,m):
+   return lambda beta: target_func_unbouded_sampling_from_rho(A,b,beta,rhoParams,dim,arch,mask,theta, VarZtrx,m)
+
+def pac_unbounded(): # TODO ist target_func_unbounded plus die Konstanten
+   pass
 
 def l_empirical_risk(A,b,arch,mask,dim,eps):
     #lambda function for the computation of the empirical risk (to compute the gradient over)
@@ -251,7 +284,7 @@ def coordit_pretraining(Z,preT_coord,preT_d_slicing,a,c,p,arch,mask,dim,eps,init
 
 
 #@jit
-def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncones_test,Ncoords,shard_size,lr,slope=1,q=0,epochs=1,maxit=jnp.inf,piScaling=1):
+def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,Ndraws,Ncones,Ncones_test,Ncoords,shard_size,lr,slope=1,q=0,epochs=1,maxit=jnp.inf,piScaling=1,bounded=True):
 
     '''
     Performs the MMAF optimization routine 
@@ -420,6 +453,43 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         
         return [it_params,opt_state,Acones,bcones,val_jest,val_grad]
 
+    def coordit_unbounded(it_coord,it_params,opt_state,batch,Bsize,m,dim,Lip,inp,rng=rng):
+
+        '''
+        Core function for the optimization: performs the gradient step and updates the parameters for each spatial coordinate at the current batch iteration
+        '''
+
+        #spatial training set slicing 
+        window_mapped=jax.vmap(d_slicing)(it_coord)
+        window_mapped=jnp.reshape(window_mapped,(len(it_coord),Bsize))
+
+        #cone extraction for the current batch
+        Acones,bcones=Z.get_coneJ((window_mapped),sizeData=time_windows[batch].shape[0])
+
+
+        theta = Z.thetatilder
+        VarZtrx = Z.truncated_covs_between_all_members_of_cone()[1][0][0]
+        scorf=tf_unbounded(Acones,bcones,it_params,dim,arch,mask,theta,VarZtrx,m)
+
+        #computes the second term of the obj function (containing the divergence terms)
+        kl_mapped = lambda beta: target_func_unbounded_KL(piParams,beta,dim,m) # TODO NNsize scheint nicht benötigt, idk ob dim == NNsize
+        #pac_mapped= lambda beta : pac_mc_allester(piParams,beta,dim,m,Lip,inp,delta)
+
+        #stochastic gradient estimator for the gradient of the expected empirical risk
+        val_jest,jest = sge_pwj(scorf,it_params,my_multi_normal,rng)
+              
+        #computes the value and the gradient (using jax.grad) of the second term of the objective function
+        val_grad=kl_mapped(it_params)
+        grad= jax.grad(kl_mapped)(it_params)
+
+      
+        #updates the parameter via Adam update rule      
+        updates = jest+grad
+        updates, opt_state = optimizer.update(updates,opt_state,it_params)  
+        it_params = optax.apply_updates(it_params,updates)
+        
+        return [it_params,opt_state,Acones,bcones,val_jest,val_grad]
+
     
     min_it=0 #will store the epoch index containing the best performing parameters
     min_error=jnp.inf
@@ -453,8 +523,11 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
             d_slicing = lambda beta: lax.dynamic_index_in_dim(time_mapped,beta,axis=1)  #  [,:]
 
             #lambda function, parallelizes the optimization routine to each coordinates shard
-            opt_mapping = jax.vmap(lambda og,pmap,opt,rngM: coordit(og,pmap,opt,batch,Z.Ncones*Z.a,Z.Ncones,dim,Lip,inp,rngM),in_axes=(0,0,0,0))
-    
+            if bounded:
+                opt_mapping = jax.vmap(lambda og,pmap,opt,rngM: coordit(og,pmap,opt,batch,Z.Ncones*Z.a,Z.Ncones,dim,Lip,inp,rngM),in_axes=(0,0,0,0))
+            else:
+                opt_mapping = jax.vmap(lambda og,pmap,opt,rngM: coordit_unbounded(og,pmap,opt,batch,Z.Ncones*Z.a,Z.Ncones,dim,Lip,inp,rngM),in_axes=(0,0,0,0))
+
             output = jnp.transpose(jax.vmap(lambda dummy: jnp.array([]))(range(Ndraws)))
             
             val_jest_stacked= jnp.array([])

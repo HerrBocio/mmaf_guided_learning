@@ -178,7 +178,8 @@ def KLdiag_grad(piParams,rhoParams,NNsize):
 
 
 
-def LipC(piParams,dim,mask,arch,shard_size=int(5e2),N=int(1e3)):
+#def LipC(piParams,dim,mask,arch,shard_size=int(5e2),N=int(1e3)):
+def LipC(piParams,dim,mask,arch,shard_size=int(1),N=int(1)):
 
     '''
     Computes the estimation of the Lipchitz constant for a ffnn
