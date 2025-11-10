@@ -64,7 +64,7 @@ def r_empirical_risk(A,b,arch,mask,dim,eps):
     return lambda beta: empirical_val(A,b,beta,arch,mask,dim,eps)
 
 
-def empirical_risk(A,b,realization,arch,mask,dim,eps):
+def empirical_risk(A,b,realization,arch,mask,dim,eps,bounded=True):
 
     '''
     Function that computes the empirical risk with respect to the absolute loss
@@ -85,7 +85,7 @@ def empirical_risk(A,b,realization,arch,mask,dim,eps):
     #reshapes the network parameter according to the layer structure
     realization=pozzo(realization,mask,arch)
     #computes the loss function over all the distribution draws
-    empR=lambda beta : ffnn_loss_forward_pass(A,beta,b,eps)
+    empR=lambda beta : ffnn_loss_forward_pass(A,beta,b,eps,bounded)
     eU=empR(realization)
     return eU
 

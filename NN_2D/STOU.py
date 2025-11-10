@@ -28,7 +28,7 @@ def ffnn_forward_pass(inp,w):#,bias):
     return jnp.matmul(x,w[-1][:-1,:])
 
 @jit
-def ffnn_loss_forward_pass(inp,weights,b,eps):	
+def ffnn_loss_forward_pass(inp,weights,b,eps,bounded=True):	
     '''
     Computes montecarlo estimator for the empirical risk of the training data 
     '''
@@ -38,7 +38,8 @@ def ffnn_loss_forward_pass(inp,weights,b,eps):
     forward_mapped=jax.vmap(forward,in_axes=1)(inp)
     forward_mapped=forward_mapped.reshape((forward_mapped.shape[0]))
     l=jax.vmap(jnp.abs)(forward_mapped-b)
-    l=jax.vmap(fun_b)(l)
+    if bounded:
+        l=jax.vmap(fun_b)(l)
     l=jnp.mean(l)#-b
     return l
 
@@ -96,6 +97,7 @@ class STOU:
       
         self.Nbatches=jnp.floor(self.N/self.Bsize).astype('int16')
         
+        self.h_s=self.h_t
         self.VarLevySeed_ = 0.5
         self.r=self.a - self.p
         self.thetatilder = jnp.sqrt(self.VarLevySeed_*(self.c_*self.r/self.A_ + self.c_/(2*self.A_**2)))*jnp.exp(-self.A_*self.r)
