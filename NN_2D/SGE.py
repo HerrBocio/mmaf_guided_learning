@@ -34,18 +34,21 @@ def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,ma
       pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
       return pozzo
   realization=pozzo(realization,mask,arch)
-  hX = ffnn_forward_pass(A,realization)
+  forward=lambda alpha:(ffnn_forward_pass(alpha,realization))
+  hX=jax.vmap(forward,in_axes=1)(A)
+  hX=hX.reshape((hX.shape[0]))
+  #hX = ffnn_forward_pass(A,realization)
   apc = A.shape[0]
   Liph = LipC(rhoParams,dim,mask,arch) # evtl parallelisieren
-  E_rho_Liph = jnp.mean(Liph)
-  E_rho_Liph_sq = jnp.mean(jnp.power(Liph,2))
-  abs_E_hX = [jnp.abs(jnp.mean(hx)) for hx in hX]
-  E_rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liph))
-  E_rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
-  tf += apc*E_rho_Liph*(theta + VarZtrx)
-  tf += E_rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
-  tf += apc * theta / jnp.sqrt(m) * E_rho_abs_E_hX_Liph
-  tf += E_rho_hXsq/(2*jnp.sqrt(m))
+  rho_Liph = jnp.mean(Liph)
+  rho_Liph_sq = jnp.mean(jnp.power(Liph,2))
+  abs_E_hX = jnp.array([jnp.abs(jnp.mean(hx)) for hx in hX])
+  rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liph))
+  rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
+  tf += apc*rho_Liph*(theta + VarZtrx)
+  tf += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
+  tf += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
+  tf += rho_hXsq/(2*jnp.sqrt(m))
 
   return tf
 
@@ -87,6 +90,7 @@ def empirical_risk(A,b,realization,arch,mask,dim,eps,bounded=True):
     #computes the loss function over all the distribution draws
     empR=lambda beta : ffnn_loss_forward_pass(A,beta,b,eps,bounded)
     eU=empR(realization)
+    #jax.debug.print("eu: {}",eU)
     return eU
 
 def empirical_val(A,b,realization,arch,mask,dim,eps):
@@ -219,7 +223,7 @@ def pac_mc_allester(piParams,rhoParams,NNsize,m,Lip,a_p_c,delta):
     
 
 
-def error(it_params,A_c_e,b_c_e,dim,arch,mask,piParams,eps,Lip,delta,a_p_c,a,m,alpha,lambda_,p,rng,shard_size=int(5e2),N=int(1e3)):
+def error(it_params,A_c_e,b_c_e,dim,arch,mask,piParams,eps,Lip,delta,a_p_c,a,m,alpha,lambda_,p,rng,shard_size=int(5e2),N=int(1e3),bounded=True):
 
     '''
     Function computing the pac bound for a generic dataset, for a single spatial coordinate
@@ -239,7 +243,10 @@ def error(it_params,A_c_e,b_c_e,dim,arch,mask,piParams,eps,Lip,delta,a_p_c,a,m,a
       e = MC_train_e(el)
       error += jnp.sum(e)
     error=error/N
-    pac=pacBound(it_params,piParams,eps,Lip,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch)
+    if bounded:
+        pac=pacBound(it_params,piParams,eps,Lip,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch)
+    else:
+       pac=0 #TODO
     return [error,pac]
 
 
@@ -473,7 +480,6 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
 
         #computes the second term of the obj function (containing the divergence terms)
         kl_mapped = lambda beta: target_func_unbounded_KL(piParams,beta,dim,m) # TODO NNsize scheint nicht benötigt, idk ob dim == NNsize
-        #pac_mapped= lambda beta : pac_mc_allester(piParams,beta,dim,m,Lip,inp,delta)
 
         #stochastic gradient estimator for the gradient of the expected empirical risk
         val_jest,jest = sge_pwj(scorf,it_params,my_multi_normal,rng)
@@ -568,10 +574,10 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         finalStep=lambda coord,beta: ef_setup(coord, beta,Z.a,inp, arch,mask,Ndraws,Ncones_test-1,milestone_seeds[-1])
 
         #lambda function, computes the in-sample linearised pac bound (for the training set)
-        e_mapped_train= jax.vmap(lambda  it_pars,it_A,it_b: error(it_pars,it_A,it_b,dim,[inp,*arch],mask,piParams,eps,Lip,delta,inp,Z.a,Z.Ncones,Z.alpha,Z.lambda_,Z.p,milestone_seeds[-1]))
+        e_mapped_train= jax.vmap(lambda  it_pars,it_A,it_b: error(it_pars,it_A,it_b,dim,[inp,*arch],mask,piParams,eps,Lip,delta,inp,Z.a,Z.Ncones,Z.alpha,Z.lambda_,Z.p,milestone_seeds[-1],bounded=bounded))
         
         #lambda function, computes the out-of-sample linearised pac bound (for the test set)
-        e_mapped_test = jax.vmap(lambda  it_pars,it_A,it_b: error(it_pars,it_A,it_b,dim,[inp,*arch],mask,piParams,eps,Lip,delta,inp,Z.a,Ncones_test-1,Z.alpha,Z.lambda_,Z.p,milestone_seeds[-1]))
+        e_mapped_test = jax.vmap(lambda  it_pars,it_A,it_b: error(it_pars,it_A,it_b,dim,[inp,*arch],mask,piParams,eps,Lip,delta,inp,Z.a,Ncones_test-1,Z.alpha,Z.lambda_,Z.p,milestone_seeds[-1],bounded=bounded))
 
         for ls_i in range((x_size-2*p*c)//shard_size): 
           #stores the pac bound values accordingly
