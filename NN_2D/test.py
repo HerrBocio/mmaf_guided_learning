@@ -1,9 +1,3 @@
-import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'#,2,3'
-os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
-#os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
-
 from STOU import STOU
 from SGE import Optimization
 from utils import *
@@ -15,10 +9,9 @@ import matplotlib.pyplot as plt
 from scipy.io import loadmat
 data_path="../datasets/" #/LOCAL/prol/
 data_path="datasets_2D/" #/LOCAL/prol/
+#path='/LOCAL/prol/s_data/results/nopreT'
 
-os.makedirs('/LOCAL/jasst/results/nopreT', exist_ok=True)
-path='/LOCAL/jasst/results/nopreT'
-#path='/afs/tu-chemnitz.de/project/calibration/debug/'
+path='/afs/tu-chemnitz.de/project/calibration/debug/'
 
 
 ####################################################################################
@@ -26,10 +19,10 @@ path='/LOCAL/jasst/results/nopreT'
 # The hyperparameters A,c,lambda_ are already estimated
 
 
-datasetsM= ['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']#
+datasetsM= ['Gaudiamonddata1A4mln']#
 ids=[1]
-A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
-c_estimatedM=[1,1]
+A_estimatedM=[3.840956]#,]#,[3.840956]#
+c_estimatedM=[1]
 m_batches=1000 
 m_test= 101
 
@@ -60,12 +53,12 @@ center_pixel=5
 delta=1/.025
 inp=3
 
-archs=[[10,10,1]]#[[30,30,1],[100,100,1],[300,300,1]]  ##,,[300,300,1],[100,100,1],
+archs=[[1]]#[[30,30,1],[100,100,1],[300,300,1]]  ##,,[300,300,1],[100,100,1],
 shard_size= [8] #[8,2,1]#,2,8]#,1]#,33]#99,?
 
 #sets the variance of the reference distribution 
 piScalingLabel=list(range(10,230,20))
-piRescaling=[1./10, 1./30, 1./50, 1./70, 1./90,1./110, 1./130, 1./150, 1./170, 1./190, 1./210] #   
+piRescaling=[1./10] #   
 piRescaling= np.log(piRescaling)
 print(piRescaling)
 
@@ -82,7 +75,7 @@ for l_,boolean in enumerate(pretraining):
       Epochs=150
       pretraining_labels='_preT'
   else:
-      Epochs=60
+      Epochs=1
       pretraining_labels=''
   for i,arch in enumerate(archs): # reversed
     #loops over architectures
