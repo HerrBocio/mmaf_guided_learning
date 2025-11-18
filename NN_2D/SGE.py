@@ -20,14 +20,14 @@ import os
 #os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'#,2,3'
 #os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
   
-def target_func_unbounded(piParams,rhoParams,NNsize,m):
-   return KLdiag(piParams,rhoParams,NNsize)/jnp.sqrt(m) + target_func_unbouded_sampling_from_rho() # ist KLdiag richtig oder from_logscale???
+# def target_func_unbounded(piParams,rhoParams,NNsize,m):
+#    return KLdiag(piParams,rhoParams,NNsize)/jnp.sqrt(m) + target_func_unbouded_sampling_from_rho() # ist KLdiag richtig oder from_logscale???
 
 def target_func_unbounded_KL(piParams,rhoParams,NNsize,m):
    return KLdiag_from_log_scale(piParams,rhoParams,NNsize)/jnp.sqrt(m)
    
 
-def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,mask,theta, VarZtrx,m): 
+def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,mask,theta, VarZtrx,m,return_lip = False): 
   tf = empirical_risk(A,b,realization,arch,mask,0,0,bounded=False)
 
   def pozzo(params,mask,arch):
@@ -49,14 +49,20 @@ def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,ma
   tf += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
   tf += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
   tf += rho_hXsq/(2*jnp.sqrt(m))
-
+  if return_lip:
+     return tf, Liph
   return tf
 
 def tf_unbounded(A,b,rhoParams,dim,arch,mask,theta, VarZtrx,m):
    return lambda beta: target_func_unbouded_sampling_from_rho(A,b,beta,rhoParams,dim,arch,mask,theta, VarZtrx,m)
 
-def pac_unbounded(): # TODO ist target_func_unbounded plus die Konstanten
-   pass
+def pac_unbounded(A,b,realization,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,m,delta):
+   apc = A.shape[0]
+   tf_sampled, Liph = target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,mask,theta, VarZtrx,m,return_lip=True)
+   suprho = Liph(rhoParams,dim,mask,arch) # this is not the sup, just estimated with one draw - could be done better with batches
+   constants = theta*(1+1/delta+apc/delta*suprho)+jnp.log(1/delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))
+   bound = tf_sampled + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants
+   return bound
 
 def l_empirical_risk(A,b,arch,mask,dim,eps):
     #lambda function for the computation of the empirical risk (to compute the gradient over)
@@ -246,7 +252,7 @@ def error(it_params,A_c_e,b_c_e,dim,arch,mask,piParams,eps,Lip,delta,a_p_c,a,m,a
     if bounded:
         pac=pacBound(it_params,piParams,eps,Lip,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch)
     else:
-       pac=0 #TODO
+       pac=pac_unbounded(A,b,realization,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,m,delta)
     return [error,pac]
 
 
