@@ -13,8 +13,8 @@ import time
 from datetime import datetime
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
-data_path="../datasets_2D/" #/LOCAL/prol/
-#data_path="datasets_2D/" #/LOCAL/prol/
+#data_path="../datasets_2D/" #/LOCAL/prol/
+data_path="datasets_2D/" #/LOCAL/prol/
 
 os.makedirs('/LOCAL/jasst/results/nopreT', exist_ok=True)
 path='/LOCAL/jasst/results/nopreT'
