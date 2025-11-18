@@ -57,8 +57,8 @@ print(hf.keys())
 for i in net:#for current_id in ids:
 	#for current_id in ids:
 	
-	print(str(dim(i)))
-	n_g=hf.get(str(dim(i)))
+	print(str(dimComp(i)))
+	n_g=hf.get(str(dimComp(i)))
 	print(n_g.keys())
 	netB=[[],[]]
 	netP=[[],[]]
@@ -73,8 +73,8 @@ for i in net:#for current_id in ids:
 		for pir in piRescaling:
 			pir_g=c_g.get('pir'+str(pir))
 			print(pir_g.keys())
-			if not os.path.exists(pathB+str(dim(i))+'/'+str(pir)):
-			  os.makedirs(pathB+str(dim(i))+'/'+str(pir))#data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
+			if not os.path.exists(pathB+str(dimComp(i))+'/'+str(pir)):
+			  os.makedirs(pathB+str(dimComp(i))+'/'+str(pir))#data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
 			#data,slope,q=rescalingU(data[:,-200000:],eps=0.000001)
 			#print(slope,q)
 			#test=data[: ,-1]#print(data.shape)    
@@ -105,12 +105,12 @@ for i in net:#for current_id in ids:
 			plt.figure()
 			plt.stairs(np.array(pit),fill=True)
 			plt.ylim((-.9,15))
-			plt.savefig(pathB+str(dim(i))+'/'+str(pir)+'/pit_'+datasetsM[current_id]+'.png')
+			plt.savefig(pathB+str(dimComp(i))+'/'+str(pir)+'/pit_'+datasetsM[current_id]+'.png')
 			plt.close()
 			plt.figure()
 			plt.stairs(np.array(pitV),fill=True)
 			plt.ylim((-.9,15))
-			plt.savefig(pathB+str(dim(i))+'/'+str(pir)+'/pitV_'+datasetsM[current_id]+'.png')
+			plt.savefig(pathB+str(dimComp(i))+'/'+str(pir)+'/pitV_'+datasetsM[current_id]+'.png')
 			plt.close()
 			netB[current_id].append(np.format_float_positional(np.round(np.mean(np.array(bou[:])),decimals=4)))
 			netP[current_id].append(np.format_float_positional(np.round(np.array(pv_val),decimals=4)))#.pvalue
@@ -138,7 +138,7 @@ for i in net:#for current_id in ids:
 			#if(np.array(batch)<Nepochs):
 			plt.annotate('p value for test set ' +str(np.round(pv_val,decimals=3)) ,xy=(120,-0.8),fontsize='x-small')
 			#else: plt.annotate('always reject in '+str(Nepochs)+' iterations with bound '+str(np.round(np.mean(bou[:]),decimals=3)),xy=(90,-0.8),fontsize='x-small')
-			plt.savefig(pathB+str(dim(i))+'/'+str(pir)+'/V_'+datasetsM[current_id]+'.png')#.pvalue
+			plt.savefig(pathB+str(dimComp(i))+'/'+str(pir)+'/V_'+datasetsM[current_id]+'.png')#.pvalue
 			plt.close()
 
 			plt.figure()
@@ -151,7 +151,7 @@ for i in net:#for current_id in ids:
 			if(np.array(batch)<Nepochs):
 			  plt.annotate('no rejection after '+str(np.array(batch))+' iterations with p value ' +str(np.round(pv,decimals=3)) +' and bound '+str(np.round(np.mean(bou[:]),decimals=3)) ,xy=(60,-0.8),fontsize='x-small')
 			else: plt.annotate('always reject in '+str(Nepochs)+' iterations with bound '+str(np.round(np.mean(bou[:]),decimals=3)),xy=(90,-0.8),fontsize='x-small')
-			plt.savefig(pathB+str(dim(i))+'/'+str(pir)+'/'+datasetsM[current_id]+'.png')#.pvalue
+			plt.savefig(pathB+str(dimComp(i))+'/'+str(pir)+'/'+datasetsM[current_id]+'.png')#.pvalue
 			plt.close()
 	tableB[0]=np.vstack([tableB[0],netB[0]])
 	tableB[1]=np.vstack([tableB[1],netB[1]])

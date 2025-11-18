@@ -17,7 +17,7 @@ data_path="../datasets_2D/" #/LOCAL/prol/
 #data_path="datasets_2D/" #/LOCAL/prol/
 
 os.makedirs('/LOCAL/jasst/results/nopreT', exist_ok=True)
-path='/LOCAL/jasst/results/nopreT'
+path='/LOCAL/jasst/results/nopreT/'
 #path='/afs/tu-chemnitz.de/project/calibration/debug/'
 
 

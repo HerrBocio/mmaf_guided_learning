@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import os
 from jax import random
 from scipy.io import loadmat
+from STOU import ffnnV
 
 
 def create_folder(new_path):
