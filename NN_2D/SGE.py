@@ -42,14 +42,15 @@ def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,ma
   Liph = LipC(rhoParams,dim,mask,arch) # evtl parallelisieren
   rho_Liph = jnp.mean(Liph)
   rho_Liph_sq = jnp.mean(jnp.power(Liph,2))
-  abs_E_hX = jnp.array([jnp.abs(jnp.mean(hx)) for hx in hX])
+  abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
+  abs_E_hX = jax.vmap(abs_mean)(hX)
   rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liph))
   rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
   tf += apc*rho_Liph*(theta + VarZtrx)
   tf += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
   tf += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
   tf += rho_hXsq/(2*jnp.sqrt(m))
-  Erho = Liph(rhoParams,dim,mask,arch) # this is not E[rho[Lip(h)]], just an estimation with one draw
+  Erho = LipC(rhoParams,dim,mask,arch) # this is not E[rho[Lip(h)]], just an estimation with one draw
   tf += 1/delta**2*(1/jnp.sqrt(m)*Erho**2 + 2*apc*theta*Erho)
   #if return_lip:
   #   return tf, Liph
@@ -58,26 +59,30 @@ def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,ma
 def tf_unbounded(A,b,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta):
    return lambda beta: target_func_unbouded_sampling_from_rho(A,b,beta,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta)
 
-def pac_unbounded(A,realization,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,m,delta):
+def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,m,delta):
     def pozzo(params,mask,arch):
       pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
       return pozzo
-    realization=pozzo(realization,mask,arch)
-    forward=lambda alpha:(ffnn_forward_pass(alpha,realization))
+    masking = lambda alpha: pozzo(alpha,mask,arch)
+    realizations=jax.vmap(masking)(realizations)
+    jax.debug.print("realizations: {}",realizations[0].shape)
+
+    forward=lambda alpha:(ffnn_forward_pass_several_weights(alpha,realizations))
     hX=jax.vmap(forward,in_axes=1)(A)
-    hX=hX.reshape((hX.shape[0]))
-    apc = A.shape[0]
+    #hX=hX.reshape((hX.shape[0]))
+    apc = A.shape[1]
     Liph = LipC(rhoParams,dim,mask,arch)
     rho_Liph = jnp.mean(Liph)
     rho_Liph_sq = jnp.mean(jnp.power(Liph,2))
-    abs_E_hX = jnp.array([jnp.abs(jnp.mean(hx)) for hx in hX])
+    abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
+    abs_E_hX = jax.vmap(abs_mean)(hX) #jnp.array([jnp.abs(jnp.mean(hx)) for hx in hX]) # todo
     rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liph))
     rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
-    tf += apc*rho_Liph*(theta + VarZtrx)
+    tf = apc*rho_Liph*(theta + VarZtrx)
     tf += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
     tf += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
     tf += rho_hXsq/(2*jnp.sqrt(m))
-    Erho = Liph(rhoParams,dim,mask,arch) # this is not E[rho[Lip(h)]], just an estimation with one draw
+    Erho = LipC(rhoParams,dim,mask,arch) # this is not E[rho[Lip(h)]], just an estimation with one draw
     tf += 1/delta**2*(1/jnp.sqrt(m)*Erho**2 + 2*apc*theta*Erho)
     constants = theta*(1+1/delta)+jnp.log(1/delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))+jnp.sqrt(m)*(apc*theta/delta)**2
     bound = tf + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants
@@ -150,14 +155,17 @@ def empirical_risk(A,b,realization,arch,mask,dim,eps,bounded=True):
     #jax.debug.print("eu: {}",eU)
     return eU
 
-def empirical_val(A,b,realization,arch,mask,dim,eps):
-    
+def empirical_val(A,b,realization,arch,mask,dim,eps,bounded=True):
+    jax.debug.print("realization shape: {}", realization.shape)
+    jax.debug.print("mask: {}", mask)
+    jax.debug.print("arch: {}", arch)
     def pozzo(params,mask,arch):
      pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
      return pozzo
     masking= lambda a: pozzo(a,mask,arch)
     realization=jax.vmap(masking)(realization)
-    empR=lambda beta : ffnn_loss_forward_pass(A,beta,b,eps)
+    jax.debug.print("realizations in emp val: {}",realization[0].shape)
+    empR=lambda beta : ffnn_loss_forward_pass(A,beta,b,eps,bounded)
     eU=jax.vmap(empR)(realization)
     return eU
 
@@ -303,19 +311,21 @@ def error(it_params,A_c_e,b_c_e,dim,arch,mask,piParams,eps,Lip,delta,a_p_c,a,m,a
     pac=pacBound(it_params,piParams,eps,Lip,delta,a_p_c,a,m,alpha,lambda_,p,dim,arch)
     return [error,pac]
 
-def error_unbounded(it_params,Z,A,A_c_e,b_c_e,dim,arch,mask,piParams,eps,delta,p,rng,shard_size=int(5e2),N=int(1e3)):
+def error_unbounded(it_params,Z,A,A_c_e,b_c_e,dim,arch,mask,piParams,eps,delta,p,rng,shard_size=int(5e0),N=int(1e1)):
 
     '''
     Function computing the pac bound for a generic dataset, for a single spatial coordinate
     Outputs the two terms separately
     '''
-
+    jax.debug.print("start of error_unbounded {}",A.shape)
     #lambda function, computes the value for the empirical risk
     MC_train_e = r_empirical_risk(A_c_e,b_c_e,arch, mask, dim, eps)
     m= Z.Ncones
+
     # N draws from the predictive distribution
     realizations = dist_sample([it_params[0],it_params[1]],num_realizations=N,seed=rng)
     realizations = realizations.reshape((N//shard_size,shard_size,dim))
+    
     error=0
     pac = 0 
     theta = Z.thetatilder
@@ -324,7 +334,8 @@ def error_unbounded(it_params,Z,A,A_c_e,b_c_e,dim,arch,mask,piParams,eps,delta,p
     #serial parallelization for each shard
       e = MC_train_e(el)
       error += jnp.sum(e)
-      p = pac_unbounded(A,el,piParams,it_params,dim,arch,mask,theta,VarZtrx,m,delta) # is this correct?
+      jax.debug.print("realiyation shape: {}", el.shape)
+      p = pac_unbounded(A_c_e,el,piParams,it_params,dim,arch,mask,theta,VarZtrx,m,delta) # A instead of A_c_e, but rethink in ways I shard
       pac += jnp.sum(p)
     error=error/N
     pac=pac/N
@@ -661,10 +672,10 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
             e_mapped_test = jax.vmap(lambda  it_pars,it_A,it_b: error(it_pars,it_A,it_b,dim,[inp,*arch],mask,piParams,eps,Lip,delta,inp,Z.a,Ncones_test-1,Z.alpha,Z.lambda_,Z.p,milestone_seeds[-1]))
         else:
            #lambda function, computes the in-sample linearised pac bound (for the training set)
-            e_mapped_train= jax.vmap(lambda  it_pars,it_A,it_b: error_unbounded(it_pars,Z,Acones_s,it_A,it_b,dim,arch,mask,piParams,eps,delta,p,rng)) #idk about Acones TODO
+            e_mapped_train= jax.vmap(lambda  it_pars,it_A,it_b: error_unbounded(it_pars,Z,Acones_s[0],it_A,it_b,dim,[inp,*arch],mask,piParams,eps,delta,p,rng)) #idk about Acones TODO
             
             #lambda function, computes the out-of-sample linearised pac bound (for the test set)
-            e_mapped_test = jax.vmap(lambda  it_pars,it_A,it_b: error_unbounded(it_pars,Z,Acones_s,it_A,it_b,dim,arch,mask,piParams,eps,delta,p,rng))
+            e_mapped_test = jax.vmap(lambda  it_pars,it_A,it_b: error_unbounded(it_pars,Z,Acones_s[0],it_A,it_b,dim,[inp,*arch],mask,piParams,eps,delta,p,rng))
 
         for ls_i in range((x_size-2*p*c)//shard_size): 
           #stores the pac bound values accordingly

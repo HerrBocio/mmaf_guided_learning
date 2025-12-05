@@ -21,6 +21,9 @@ def ffnn_forward_pass(inp,w):#,bias):
         w: network parameters
     '''
     x=inp
+    
+    #jax.debug.print("forward pass x: {}", x.shape)
+    #jax.debug.print("forward pass w: {}",w[0].shape)
     for el in w[:-1]:
        x=jnp.matmul(x,el[:-1,:]) +el[-1,:]
        activation= lambda vec: (vec<0)*0+(vec>=0)*vec 
@@ -42,6 +45,17 @@ def ffnn_loss_forward_pass(inp,weights,b,eps,bounded=True):
         l=jax.vmap(fun_b)(l)
     l=jnp.mean(l)#-b
     return l
+
+def ffnn_forward_pass_several_weights(inp,weights):	
+    '''
+    Computes montecarlo estimator for the empirical risk of the training data 
+    '''
+    #jax.debug.print("shape: {}",weights)
+    forward_weights=lambda alpha:ffnn_forward_pass(inp,alpha)
+    forward_mapped=jax.vmap(forward_weights)(weights) #0 or 1?,in_axes=0
+    forward_mapped=forward_mapped.reshape((forward_mapped.shape[0]))
+    return forward_mapped
+
 
 ffnn_loss_forward_pass = jit(ffnn_loss_forward_pass, static_argnames=('bounded',))   
 
