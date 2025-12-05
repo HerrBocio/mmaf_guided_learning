@@ -46,6 +46,18 @@ def ffnn_loss_forward_pass(inp,weights,b,eps,bounded=True):
     l=jnp.mean(l)#-b
     return l
 
+def ffnn_loss_forward_pass_unbounded(inp,weights,b):	
+    '''
+    Computes montecarlo estimator for the empirical risk of the training data 
+    '''
+    forward=lambda alpha:(ffnn_forward_pass(alpha,weights))
+    l=0
+    forward_mapped=jax.vmap(forward,in_axes=1)(inp)
+    forward_mapped=forward_mapped.reshape((forward_mapped.shape[0]))
+    l=jax.vmap(jnp.abs)(forward_mapped-b)
+    l=jnp.mean(l)#-b
+    return l
+
 def ffnn_forward_pass_several_weights(inp,weights):	
     '''
     Computes montecarlo estimator for the empirical risk of the training data 
