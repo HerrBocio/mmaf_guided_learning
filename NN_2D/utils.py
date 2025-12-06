@@ -190,8 +190,6 @@ def LipC(piParams,dim,mask,arch,shard_size=int(1),N=int(1)):
         mask: network layers structure
     Output L
     '''
-
-  
     realizations = dist_sample(piParams,num_realizations=N,seed=jax.random.key(0))
     realizations=realizations.reshape((N//shard_size,shard_size,dim))
   
@@ -215,7 +213,48 @@ def LipC(piParams,dim,mask,arch,shard_size=int(1),N=int(1)):
       
     L=L/N
     return L
-  
+
+def Lip_realizations(realizations,dim,mask,arch,shard_size=int(1)):
+
+    '''
+    '''
+    #realizations = dist_sample(distParams,num_realizations=N,seed=jax.random.key(0))
+    jax.debug.print("realizations shape {}", realizations.shape)
+    N = realizations.shape[0] #???
+    realizations=realizations.reshape((N//shard_size,shard_size,dim))
+    def naiveLip(weights):
+      prod=1
+      for el in weights:
+        prod*=jnp.amax(jnp.abs(el))            
+      return prod
+    Lips = jnp.array([])
+    for el in realizations:
+      c=jax.vmap(naiveLip)(el)
+      #jax.debug.print("c {}",c)
+      Lips = jnp.append(Lips, c)
+
+    return Lips
+
+def Lip_realizations_masked(realizations_masked,dim,mask,arch,shard_size=int(1)):
+
+    '''
+    '''
+    #realizations = dist_sample(distParams,num_realizations=N,seed=jax.random.key(0))
+    jax.debug.print("realizations shape {}", realizations_masked.shape)
+    N = realizations_masked.shape[0] #???
+    realizations_masked=realizations_masked.reshape((N//shard_size,shard_size,dim))
+    def naiveLip(weights):
+      prod=1
+      for el in weights:
+        prod*=jnp.amax(jnp.abs(el))            
+      return prod
+    Lips = jnp.array([])
+    for el in realizations_masked:
+      c=jax.vmap(naiveLip)(el)
+      #jax.debug.print("c {}",c)
+      Lips = jnp.append(Lips, c)
+
+    return Lips
 
 
 # CRPS
