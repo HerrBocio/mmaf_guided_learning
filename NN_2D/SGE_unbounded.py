@@ -42,19 +42,20 @@ def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,ma
   #jax.debug.print("hX shape tf after reshape: {}", hX.shape)
   apc = A.shape[0]
   #jax.debug.print("apc tf {}", apc) ist korrekt
-  Liph = LipC(rhoParams,dim,mask,arch) # evtl parallelisieren
-  rho_Liph = jnp.mean(Liph)
-  rho_Liph_sq = jnp.mean(jnp.power(Liph,2))
+  rho_Liph = Lip_realizations_masked(realization) # evtl parallelisieren
+  #rho_Liph = jnp.mean(Liph)
+  rho_Liph_sq = jnp.mean(jnp.power(rho_Liph,2))
   abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
   abs_E_hX = jax.vmap(abs_mean)(hX)
-  rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liph))
+  rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, rho_Liph))
   rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
-  tf += apc*rho_Liph*(theta + VarZtrx)
+  tf += apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
   tf += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
   tf += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
   tf += rho_hXsq/(2*jnp.sqrt(m))
-  Erho = LipC(rhoParams,dim,mask,arch) # this is not E[rho[Lip(h)]], just an estimation with one draw
-  tf += 1/delta**2*(1/jnp.sqrt(m)*Erho**2 + 2*apc*theta*Erho)
+  #Erho = LipC(rhoParams,dim,mask,arch) # this is not E[rho[Lip(h)]], just an estimation with one draw
+  #tf += 1/delta**2*(1/jnp.sqrt(m)*Erho**2 + 2*apc*theta*Erho)
+  tf += 1/delta**2*(1/jnp.sqrt(m)*rho_Liph**2 + 2*apc*theta*rho_Liph)
   return tf
 
 def tf_unbounded(A,b,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta):
@@ -69,32 +70,45 @@ def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,
       return pozzo
     masking = lambda alpha: pozzo(alpha,mask,arch)
     realizations=jax.vmap(masking,in_axes=0)(realizations)
-    jax.debug.print("realizations masked len: {}", len(realizations))
-    jax.debug.print("realizations masked example: {}", realizations[0])
+    #jax.debug.print("realizations masked len: {}", len(realizations)) #2?? warum, aber später sind wieder 5 - idk, nicht dass was ich erwarte aber rest scheint zu funktionieren
+    #jax.debug.print("realizations masked example: {}", realizations[0])
     #jax.debug.print("realizations: {}",realizations[0].shape)
     #jax.debug.print("A shape: {}", A.shape)
     forward=lambda alpha:(ffnn_forward_pass_several_weights(alpha,realizations))
     hX=jax.vmap(forward,in_axes=1)(A) #(1000,5)
     #hX=hX.reshape((hX.shape[0]))
-    #jax.debug.print("hX shape: {}", hX.shape)
+    jax.debug.print("hX shape: {}", hX.shape)
     apc = A.shape[0]
     #jax.debug.print("apc pac {}", apc) passt
-    Liphs = Lip_realizations_masked(realizations, dim,mask,arch) #müsste (5,)
+    Liphs = Lip_realizations_masked(realizations) # (5,) - passt :)
     jax.debug.print("Liph shape {}", Liphs.shape)
     rho_Liph = jnp.mean(Liphs)
+    #jax.debug.print("Lips {}",Liphs)
+    #jax.debug.print("Lips squared {}",jnp.power(Liphs,2)) passt
     rho_Liph_sq = jnp.mean(jnp.power(Liphs,2))
-    abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
+    abs_mean = lambda beta: jnp.abs(jnp.mean(beta, axis=0))
+    hX = jnp.stack(hX, axis=1)
     abs_E_hX = jax.vmap(abs_mean)(hX)
+    #jax.debug.print("abs E hx shape {}",abs_E_hX.shape)
     rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liphs))
+    #jax.debug.print("is this 5 shape? {}",jnp.multiply(abs_E_hX, Liphs)) #yes but some are 0
+    #jax.debug.print("muesste 5 {}",jnp.power(abs_E_hX,2)) #ja
     rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
-    tf = apc*rho_Liph*(theta + VarZtrx)
+    #jax.debug.print("is this 5 shape? power {}",jnp.power(abs_E_hX,2)) #yes but some are 0
+    tf = apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
+    #jax.debug.print("tf {}",tf)
     tf += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
+    #jax.debug.print("tf {}",tf)
     tf += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
+    #jax.debug.print("tf {}",tf)
     tf += rho_hXsq/(2*jnp.sqrt(m))
-    Erho = LipC(rhoParams,dim,mask,arch) # this is not E[rho[Lip(h)]], just an estimation with one draw
-    tf += 1/delta**2*(1/jnp.sqrt(m)*Erho**2 + 2*apc*theta*Erho)
+    #Erho = rho_Liph #LipC(rhoParams,dim,mask,arch) # this is not E[rho[Lip(h)]], just an estimation with one draw
+    #tf += 1/delta**2*(1/jnp.sqrt(m)*Erho**2 + 2*apc*theta*Erho)
+    tf += 1/delta**2*(1/jnp.sqrt(m)*rho_Liph**2 + 2*apc*theta*rho_Liph)
+    #jax.debug.print("tf {}",tf)
     constants = theta*(1+1/delta)+jnp.log(1/delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))+jnp.sqrt(m)*(apc*theta/delta)**2
     bound = tf + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants
+    #jax.debug.print("BOUND: {}", bound)
     return bound
 
 def l_empirical_risk_unbounded(A,b,arch,mask):
