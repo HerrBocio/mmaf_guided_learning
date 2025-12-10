@@ -214,46 +214,40 @@ def LipC(piParams,dim,mask,arch,shard_size=int(1),N=int(1)):
     L=L/N
     return L
 
-def Lip_realizations(realizations,dim,mask,arch,shard_size=int(1)):
+def Lip_realizations(realizations,mask,arch):
 
     '''
+    takes unmasked realizations, outputs the Lipschitz constant of each of them
     '''
-    #realizations = dist_sample(distParams,num_realizations=N,seed=jax.random.key(0))
-    jax.debug.print("realizations shape {}", realizations.shape)
-    N = realizations.shape[0] #???
-    realizations=realizations.reshape((N//shard_size,shard_size,dim))
+    #jax.debug.print("realizations shape {}", realizations.shape)
+    def pozzo(params,mask,arch):
+     
+     pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
+     return pozzo
+
+    parPozzo=lambda alpha: pozzo(alpha,mask,arch)
+
     def naiveLip(weights):
       prod=1
       for el in weights:
         prod*=jnp.amax(jnp.abs(el))            
       return prod
-    Lips = jnp.array([])
-    for el in realizations:
-      c=jax.vmap(naiveLip)(el)
-      #jax.debug.print("c {}",c)
-      Lips = jnp.append(Lips, c)
+    w=jax.vmap(parPozzo)(realizations)
+    Lips=jax.vmap(naiveLip)(w)
 
     return Lips
 
-def Lip_realizations_masked(realizations_masked,dim,mask,arch,shard_size=int(1)):
+def Lip_realizations_masked(realizations_masked):
 
     '''
+    takes masked realizations, outputs the Lipschitz constant of each of them
     '''
-    #realizations = dist_sample(distParams,num_realizations=N,seed=jax.random.key(0))
-    jax.debug.print("realizations shape {}", realizations_masked.shape)
-    N = realizations_masked.shape[0] #???
-    realizations_masked=realizations_masked.reshape((N//shard_size,shard_size,dim))
     def naiveLip(weights):
       prod=1
       for el in weights:
         prod*=jnp.amax(jnp.abs(el))            
       return prod
-    Lips = jnp.array([])
-    for el in realizations_masked:
-      c=jax.vmap(naiveLip)(el)
-      #jax.debug.print("c {}",c)
-      Lips = jnp.append(Lips, c)
-
+    Lips=jax.vmap(naiveLip)(realizations_masked)
     return Lips
 
 

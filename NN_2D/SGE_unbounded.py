@@ -79,8 +79,8 @@ def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,
     #jax.debug.print("hX shape: {}", hX.shape)
     apc = A.shape[0]
     #jax.debug.print("apc pac {}", apc) passt
-    Liphs = Lip_realizations_masked(rhoParams, dim,mask,arch) #müsste (1000,5)
-    jax.debug.print("Liph type {}", type(Liphs))
+    Liphs = Lip_realizations_masked(realizations, dim,mask,arch) #müsste (5,)
+    jax.debug.print("Liph shape {}", Liphs.shape)
     rho_Liph = jnp.mean(Liphs)
     rho_Liph_sq = jnp.mean(jnp.power(Liphs,2))
     abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
