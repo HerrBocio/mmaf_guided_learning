@@ -85,9 +85,9 @@ def chi2_diag_gaussians(piParams,rhoParams):
       rhoParams: parameters of the generalised posterior distribution
     """
     mu_p = rhoParams[0]
-    var_p = rhoParams[1]
+    var_p = jnp.exp(rhoParams[1])
     mu_q = piParams[0]
-    var_q = piParams[1]
+    var_q = jnp.exp(piParams[1])
     delta2 = (mu_p - mu_q)**2
     denom = var_p * (2*var_q - var_p)
     Ii = var_q / jnp.sqrt(denom) * jnp.exp(delta2 / (2*var_q - var_p))
@@ -180,7 +180,7 @@ def KLdiag_grad(piParams,rhoParams,NNsize):
 
 
 #def LipC(piParams,dim,mask,arch,shard_size=int(5e2),N=int(1e3)):
-def LipC(piParams,dim,mask,arch,shard_size=int(1),N=int(1)):
+def LipC(params,dim,mask,arch,shard_size=int(1),N=int(1)):
 
     '''
     Computes the estimation of the Lipchitz constant for a ffnn
@@ -190,7 +190,7 @@ def LipC(piParams,dim,mask,arch,shard_size=int(1),N=int(1)):
         mask: network layers structure
     Output L
     '''
-    realizations = dist_sample(piParams,num_realizations=N,seed=jax.random.key(0))
+    realizations = dist_sample(params,num_realizations=N,seed=jax.random.key(0))
     realizations=realizations.reshape((N//shard_size,shard_size,dim))
   
     def pozzo(params,mask,arch):

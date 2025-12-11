@@ -82,7 +82,7 @@ for l_,boolean in enumerate(pretraining):
       Epochs=15
       pretraining_labels='_preT'
   else:
-      Epochs=1
+      Epochs=60
       pretraining_labels=''
   for i,arch in enumerate(archs): # reversed
     #loops over architectures

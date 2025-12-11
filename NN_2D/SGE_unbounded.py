@@ -64,7 +64,7 @@ def tf_unbounded(A,b,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta):
    #return lambda beta: target_func_unbouded_sampling_from_rho(A,b,beta,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta)
 
 def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,m,delta):
-    jax.debug.print("realizations unmasked shape: {}", realizations.shape)
+    #jax.debug.print("realizations unmasked shape: {}", realizations.shape)
     def pozzo(params,mask,arch):
       pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
       return pozzo
@@ -77,11 +77,11 @@ def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,
     forward=lambda alpha:(ffnn_forward_pass_several_weights(alpha,realizations))
     hX=jax.vmap(forward,in_axes=1)(A) #(1000,5)
     #hX=hX.reshape((hX.shape[0]))
-    jax.debug.print("hX shape: {}", hX.shape)
+    #jax.debug.print("hX shape: {}", hX.shape)
     apc = A.shape[0]
     #jax.debug.print("apc pac {}", apc) passt
     Liphs = Lip_realizations_masked(realizations) # (5,) - passt :)
-    jax.debug.print("Liph shape {}", Liphs.shape)
+    #jax.debug.print("Liph shape {}", Liphs.shape)
     rho_Liph = jnp.mean(Liphs)
     #jax.debug.print("Lips {}",Liphs)
     #jax.debug.print("Lips squared {}",jnp.power(Liphs,2)) passt
@@ -108,7 +108,8 @@ def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,
     #jax.debug.print("tf {}",tf)
     constants = theta*(1+1/delta)+jnp.log(1/delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))+jnp.sqrt(m)*(apc*theta/delta)**2
     bound = tf + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants
-    #jax.debug.print("BOUND: {}", bound)
+    jax.debug.print("constants: {}", constants)
+    jax.debug.print("KL: {}", target_func_unbounded_KL(piParams,rhoParams,dim,m))
     return bound
 
 def l_empirical_risk_unbounded(A,b,arch,mask):
@@ -160,7 +161,7 @@ def empirical_val_unbounded(A,b,realization,arch,mask):
     eU=jax.vmap(empR)(realization)
     return eU
 
-def error_unbounded(it_params,Z,A,A_c_e,b_c_e,dim,arch,mask,piParams,eps,delta,p,rng,shard_size=int(5e0),N=int(1e1)):
+def error_unbounded(it_params,Z,A_c_e,b_c_e,dim,arch,mask,piParams,m,delta,rng,shard_size=int(5e0),N=int(1e1)):
 
     '''
     Function computing the pac bound for a generic dataset, for a single spatial coordinate
@@ -169,7 +170,7 @@ def error_unbounded(it_params,Z,A,A_c_e,b_c_e,dim,arch,mask,piParams,eps,delta,p
     #jax.debug.print("start of error_unbounded {}",A.shape)
     #lambda function, computes the value for the empirical risk
     MC_train_e = r_empirical_risk_unbounded(A_c_e,b_c_e,arch, mask)
-    m= Z.Ncones
+    #m= Z.Ncones
 
     # N draws from the predictive distribution
     realizations = dist_sample([it_params[0],it_params[1]],num_realizations=N,seed=rng)
@@ -188,6 +189,8 @@ def error_unbounded(it_params,Z,A,A_c_e,b_c_e,dim,arch,mask,piParams,eps,delta,p
       pac += jnp.sum(p)
     error=error/N
     pac=pac/N
+    jax.debug.print("error {}", error)
+    jax.debug.print("pac {}", pac)
     return [error,pac]
 
 
@@ -363,7 +366,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         '''
         Core function for the optimization: performs the gradient step and updates the parameters for each spatial coordinate at the current batch iteration
         '''
-
+        #jax.debug.print("params {}", it_params)
         #spatial training set slicing 
         window_mapped=jax.vmap(d_slicing)(it_coord)
         window_mapped=jnp.reshape(window_mapped,(len(it_coord),Bsize))
@@ -385,7 +388,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         #computes the value and the gradient (using jax.grad) of the second term of the objective function
         val_grad=kl_mapped(it_params)
         grad= jax.grad(kl_mapped)(it_params)
-
+        #jax.debug.print("grad {}",grad)
       
         #updates the parameter via Adam update rule      
         updates = jest+grad
@@ -470,10 +473,10 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
 
         
         #lambda function, computes the in-sample linearised pac bound (for the training set)
-        e_mapped_train= jax.vmap(lambda  it_pars,it_A,it_b: error_unbounded(it_pars,Z,Acones_s[0],it_A,it_b,dim,[inp,*arch],mask,piParams,eps,delta,p,rng)) #idk about Acones TODO
+        e_mapped_train= jax.vmap(lambda  it_pars,it_A,it_b: error_unbounded(it_pars,Z,it_A,it_b,dim,[inp,*arch],mask,piParams,Ncones,delta,rng)) #idk about Acones TODO
             
         #lambda function, computes the out-of-sample linearised pac bound (for the test set)
-        e_mapped_test = jax.vmap(lambda  it_pars,it_A,it_b: error_unbounded(it_pars,Z,Acones_s[0],it_A,it_b,dim,[inp,*arch],mask,piParams,eps,delta,p,rng))
+        e_mapped_test = jax.vmap(lambda  it_pars,it_A,it_b: error_unbounded(it_pars,Z,it_A,it_b,dim,[inp,*arch],mask,piParams,Ncones_test,delta,rng))
 
         for ls_i in range((x_size-2*p*c)//shard_size): 
           #stores the pac bound values accordingly

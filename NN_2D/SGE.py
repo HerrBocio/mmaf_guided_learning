@@ -542,12 +542,12 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         #computes the value and the gradient (using jax.grad) of the second term of the objective function
         val_grad=pac_mapped(it_params)
         grad= jax.grad(pac_mapped)(it_params)
-
       
         #updates the parameter via Adam update rule      
         updates = jest+grad
         updates, opt_state = optimizer.update(updates,opt_state,it_params)  
         it_params = optax.apply_updates(it_params,updates)
+        jax.debug.print("params b {}",it_params)
         
         return [it_params,opt_state,Acones,bcones,val_jest,val_grad]
 

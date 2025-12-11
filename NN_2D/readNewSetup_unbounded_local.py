@@ -20,7 +20,7 @@ import jax
 import jax.numpy as jnp
 from utils import *
 data_path="datasets_2D/" # local
-data_path="../datasets_2D/" # server
+#data_path="../datasets_2D/" # server
 
 pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/results/tables/" #'results/s_data/tables/'
 pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/results/tables/" #'results/s_data/figures/'
@@ -214,7 +214,7 @@ for current_id in reversed(range(len(datasetsM))):
                     KL=jax.vmap(kl_mapped)(best_params)
                     KL=jnp.mean(KL)
                     print('kl ',KL)
-                    chi2_gau_map=lambda beta: chi2_diag_gaussians(beta,piParams)
+                    chi2_gau_map=lambda beta: chi2_diag_gaussians(jnp.exp(beta),jnp.exp(piParams))
                     ChiSq=jax.vmap(chi2_gau_map)(best_params)
                     #Chi2=jnp.mean(ChiSq)
                     #print('chi2 ',Chi2)

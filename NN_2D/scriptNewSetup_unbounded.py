@@ -73,7 +73,7 @@ pretraining=[False]
 
 rescaling=False
 
-day='undefined'
+day='test'
 filename=day+'_full_relu_std'
 
 for l_,boolean in enumerate(pretraining): 
