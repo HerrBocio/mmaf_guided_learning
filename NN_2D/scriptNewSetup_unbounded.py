@@ -5,7 +5,7 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
 from STOU import STOU
-from SGE import Optimization
+from SGE_unbounded import Optimization
 from utils import *
 import numpy as np
 import h5py
@@ -57,7 +57,7 @@ print('a val',a_val,lambda_)
 
 center_pixel=5
 
-delta=1/.025
+delta=.025
 inp=3
 
 archs=[[10,10,1]]#[[30,30,1],[100,100,1],[300,300,1]]  ##,,[300,300,1],[100,100,1],

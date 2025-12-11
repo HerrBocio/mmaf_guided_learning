@@ -176,7 +176,11 @@ def KLdiag_grad(piParams,rhoParams,NNsize):
     gradient= jax.vmap(grad)(piParams0,piParams1,rhoParams0,rhoParams1)
     return jnp.transpose(gradient)
 
-
+def naiveLip(weights):
+  prod=1
+  for el in weights:
+    prod*=jnp.max(jnp.sum(jnp.abs(el), axis=0)) # TODO: bias removen?          
+  return prod
 
 
 #def LipC(piParams,dim,mask,arch,shard_size=int(5e2),N=int(1e3)):
@@ -199,11 +203,7 @@ def LipC(params,dim,mask,arch,shard_size=int(1),N=int(1)):
      return pozzo
 
     parPozzo=lambda alpha: pozzo(alpha,mask,arch)
-    def naiveLip(weights):
-      prod=1
-      for el in weights:
-        prod*=jnp.amax(jnp.abs(el))            
-      return prod
+
     L=0
     for el in realizations:
       w=jax.vmap(parPozzo)(el)
@@ -227,11 +227,6 @@ def Lip_realizations(realizations,mask,arch):
 
     parPozzo=lambda alpha: pozzo(alpha,mask,arch)
 
-    def naiveLip(weights):
-      prod=1
-      for el in weights:
-        prod*=jnp.amax(jnp.abs(el))            
-      return prod
     w=jax.vmap(parPozzo)(realizations)
     Lips=jax.vmap(naiveLip)(w)
 
@@ -242,11 +237,6 @@ def Lip_realizations_masked(realizations_masked):
     '''
     takes masked realizations, outputs the Lipschitz constant of each of them
     '''
-    def naiveLip(weights):
-      prod=1
-      for el in weights:
-        prod*=jnp.amax(jnp.abs(el))            
-      return prod
     Lips=jax.vmap(naiveLip)(realizations_masked)
     return Lips
 

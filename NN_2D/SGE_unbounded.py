@@ -108,8 +108,11 @@ def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,
     #jax.debug.print("tf {}",tf)
     constants = theta*(1+1/delta)+jnp.log(1/delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))+jnp.sqrt(m)*(apc*theta/delta)**2
     bound = tf + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants
-    jax.debug.print("constants: {}", constants)
-    jax.debug.print("KL: {}", target_func_unbounded_KL(piParams,rhoParams,dim,m))
+    #jax.debug.print("theta*(1+1/delta): {}", theta*(1+1/delta))
+    jax.debug.print("jnp.log(1/delta)/jnp.sqrt(m): {}", jnp.log(1/delta)/jnp.sqrt(m))
+    #jax.debug.print("VarZtrx/(2*jnp.sqrt(m)): {}", VarZtrx/(2*jnp.sqrt(m)))
+    #jax.debug.print("jnp.sqrt(m)*(apc*theta/delta)**2: {}", jnp.sqrt(m)*(apc*theta/delta)**2)
+    #jax.debug.print("KL: {}", target_func_unbounded_KL(piParams,rhoParams,dim,m))
     return bound
 
 def l_empirical_risk_unbounded(A,b,arch,mask):

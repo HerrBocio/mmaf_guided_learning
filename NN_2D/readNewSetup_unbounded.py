@@ -23,7 +23,7 @@ data_path="datasets_2D/" # local
 data_path="../datasets_2D/" # server
 
 pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/results/tables/" #'results/s_data/tables/'
-pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/results/tables/" #'results/s_data/figures/'
+pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/results/figures/" #'results/s_data/figures/'
 #path='/afs/tu-chemnitz.de/project/calibration/paper_simulations/m_wise_epoch_wise/'
 
 #path='/LOCAL/prol/s_data/'#nobias/'
@@ -55,7 +55,6 @@ datasetsM=['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']
 h_t=[1]
 a_val=[8,8]
 p=[1]
-eps=3.
 
 delta=1./0.025
 A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
@@ -88,11 +87,11 @@ calibration=False
 start=10-1
 
 
-constants_train=2*np.log(1./0.025)/np.sqrt(m_batches[0]) + eps**2/(2*np.sqrt(m_batches[0]))
+#constants_train=2*np.log(1./0.025)/np.sqrt(m_batches[0]) + eps**2/(2*np.sqrt(m_batches[0]))
 
-constants_test=2*np.log(1./0.025)/np.sqrt(Ncones_test-1) + eps**2/(2*np.sqrt(Ncones_test-1))
+#constants_test=2*np.log(1./0.025)/np.sqrt(Ncones_test-1) + eps**2/(2*np.sqrt(Ncones_test-1))
 
-constants_test_t=np.log(1./0.025)/np.sqrt(Ncones_test-1) + eps**2/(2*np.sqrt(Ncones_test-1))
+#constants_test_t=np.log(1./0.025)/np.sqrt(Ncones_test-1) + eps**2/(2*np.sqrt(Ncones_test-1))
 
 pre_ranks=["multivariate_rank","average_rank","band_depth","mean","variance","energy_score"]
 arch_x_val=[1e4,1e5] #1,1e1,1e2,
@@ -191,15 +190,15 @@ for current_id in reversed(range(len(datasetsM))):
                     #print(b_g.keys())
                     best_params=jnp.array(b_g.get('best params'))
                     #print(last_params.shape)
-                    min_error=np.array(b_g.get('min_error'))-constants_train
+                    min_error=np.array(b_g.get('min_error'))#-constants_train
                     min_it=np.array(b_g.get('min iteration'))
                     data_test=np.array(m_g.get('data_test'))
                     #print(data_test.shape)
                     e_g=m_g.get('epoch'+str(min_it))
-                    bound_min=np.array(e_g.get('bound_test')-constants_test)
+                    bound_min=np.array(e_g.get('bound_test'))#-constants_test)
                     emp_min=np.array(e_g.get('test_errors'))
                     test_min=jnp.mean(bound_min+emp_min)
-                    pac_test_min= test_min + constants_test_t
+                    pac_test_min= test_min# + constants_test_t
                     b_test=np.array(e_g.get('cones_test'))
 
                     
@@ -214,16 +213,17 @@ for current_id in reversed(range(len(datasetsM))):
                     KL=jax.vmap(kl_mapped)(best_params)
                     KL=jnp.mean(KL)
                     print('kl ',KL)
-                    chi2_gau_map=lambda beta: chi2_diag_gaussians(beta,piParams)
-                    ChiSq=jax.vmap(chi2_gau_map)(best_params)
+                    #chi2_gau_map=lambda beta: chi2_diag_gaussians(beta,piParams)
+                    #ChiSq=jax.vmap(chi2_gau_map)(best_params)
                     #Chi2=jnp.mean(ChiSq)
                     #print('chi2 ',Chi2)
-                    truePacFun=jax.vmap(lambda beta,gamma: truePAC(beta,piParams,eps,Lip,delta,inp,Ncones_test,alph,p,d,arch,gamma),in_axes=(0,0))
-                    true_bound=truePacFun(best_params,ChiSq)
+                    #truePacFun=jax.vmap(lambda beta,gamma: truePAC(beta,piParams,eps,Lip,delta,inp,Ncones_test,alph,p,d,arch,gamma),in_axes=(0,0))
+                    #true_bound=truePacFun(best_params,ChiSq)
+                    true_bound = bound_min #?? TODO
                     safe_mean=lambda beta: beta/best_params.shape[0]
-                    chi_mean=jax.vmap(safe_mean)(ChiSq)
-                    Chi2=jnp.sum(chi_mean)
-                    print('chi2',Chi2)
+                    #chi_mean=jax.vmap(safe_mean)(ChiSq)
+                    #Chi2=jnp.sum(chi_mean)
+                    #print('chi2',Chi2)
                     print(emp_min + true_bound)
                     pac_true_min =jnp.mean( true_bound+emp_min)
                     print('true pac',pac_true_min)   
@@ -300,7 +300,7 @@ for current_id in reversed(range(len(datasetsM))):
                         #data_test=np.array(e_g.get('cones_test'))
                         #print(data_test[:,0])
                         #e_f_inv= np.array(e_g.get('e_f_inv'))
-                        bound_train.append(np.mean( np.array(e_g.get('bound_train')))-constants_train)
+                        bound_train.append(np.mean( np.array(e_g.get('bound_train'))))#-constants_train)
                         train_errors.append( np.mean(np.array(e_g.get('train_errors'))))
                         #min_bound_train.append(np.mean( np.array(e_g.get('min bound'))))
                         
@@ -308,7 +308,7 @@ for current_id in reversed(range(len(datasetsM))):
                         #arams=jnp.
                         #print(params[0].shape)
                         #print(np.array(e_g.get('best_paramsmin error')))
-                        bound_test.append(np.mean( np.array(e_g.get('bound_test')))-constants_test)
+                        bound_test.append(np.mean( np.array(e_g.get('bound_test'))))#-constants_test)
                         test_errors.append(np.mean(np.array(e_g.get('test_errors'))))
                         empirical_obj=np.hstack([empirical_obj,np.mean(np.array(e_g.get('val_jest')),axis=1)])
                         pac_obj=np.hstack([pac_obj,np.mean(np.array(e_g.get('val_grad')),axis=1)])
