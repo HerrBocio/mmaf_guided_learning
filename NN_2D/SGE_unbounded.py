@@ -43,6 +43,7 @@ def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,ma
   apc = A.shape[0]
   #jax.debug.print("apc tf {}", apc) ist korrekt
   rho_Liph = Lip_realizations_masked(realization) # evtl parallelisieren
+  jax.debug.print("Lip {}",rho_Liph)
   #rho_Liph = jnp.mean(Liph)
   rho_Liph_sq = jnp.mean(jnp.power(rho_Liph,2))
   abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
@@ -70,50 +71,30 @@ def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,
       return pozzo
     masking = lambda alpha: pozzo(alpha,mask,arch)
     realizations=jax.vmap(masking,in_axes=0)(realizations)
-    #jax.debug.print("realizations masked len: {}", len(realizations)) #2?? warum, aber später sind wieder 5 - idk, nicht dass was ich erwarte aber rest scheint zu funktionieren
-    #jax.debug.print("realizations masked example: {}", realizations[0])
-    #jax.debug.print("realizations: {}",realizations[0].shape)
-    #jax.debug.print("A shape: {}", A.shape)
     forward=lambda alpha:(ffnn_forward_pass_several_weights(alpha,realizations))
     hX=jax.vmap(forward,in_axes=1)(A) #(1000,5)
-    #hX=hX.reshape((hX.shape[0]))
-    #jax.debug.print("hX shape: {}", hX.shape)
     apc = A.shape[0]
-    #jax.debug.print("apc pac {}", apc) passt
     Liphs = Lip_realizations_masked(realizations) # (5,) - passt :)
-    #jax.debug.print("Liph shape {}", Liphs.shape)
     rho_Liph = jnp.mean(Liphs)
-    #jax.debug.print("Lips {}",Liphs)
-    #jax.debug.print("Lips squared {}",jnp.power(Liphs,2)) passt
     rho_Liph_sq = jnp.mean(jnp.power(Liphs,2))
     abs_mean = lambda beta: jnp.abs(jnp.mean(beta, axis=0))
     hX = jnp.stack(hX, axis=1)
     abs_E_hX = jax.vmap(abs_mean)(hX)
-    #jax.debug.print("abs E hx shape {}",abs_E_hX.shape)
     rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liphs))
-    #jax.debug.print("is this 5 shape? {}",jnp.multiply(abs_E_hX, Liphs)) #yes but some are 0
-    #jax.debug.print("muesste 5 {}",jnp.power(abs_E_hX,2)) #ja
     rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
-    #jax.debug.print("is this 5 shape? power {}",jnp.power(abs_E_hX,2)) #yes but some are 0
-    tf = apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
-    #jax.debug.print("tf {}",tf)
-    tf += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
-    #jax.debug.print("tf {}",tf)
-    tf += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
-    #jax.debug.print("tf {}",tf)
-    tf += rho_hXsq/(2*jnp.sqrt(m))
+    tf_E = apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
+    tf_E += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
+    tf_E += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
+    tf_E += rho_hXsq/(2*jnp.sqrt(m))
     #Erho = rho_Liph #LipC(rhoParams,dim,mask,arch) # this is not E[rho[Lip(h)]], just an estimation with one draw
     #tf += 1/delta**2*(1/jnp.sqrt(m)*Erho**2 + 2*apc*theta*Erho)
-    tf += 1/delta**2*(1/jnp.sqrt(m)*rho_Liph**2 + 2*apc*theta*rho_Liph)
-    #jax.debug.print("tf {}",tf)
-    constants = theta*(1+1/delta)+jnp.log(1/delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))+jnp.sqrt(m)*(apc*theta/delta)**2
-    bound = tf + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants
-    #jax.debug.print("theta*(1+1/delta): {}", theta*(1+1/delta))
-    jax.debug.print("jnp.log(1/delta)/jnp.sqrt(m): {}", jnp.log(1/delta)/jnp.sqrt(m))
-    #jax.debug.print("VarZtrx/(2*jnp.sqrt(m)): {}", VarZtrx/(2*jnp.sqrt(m)))
-    #jax.debug.print("jnp.sqrt(m)*(apc*theta/delta)**2: {}", jnp.sqrt(m)*(apc*theta/delta)**2)
-    #jax.debug.print("KL: {}", target_func_unbounded_KL(piParams,rhoParams,dim,m))
-    return bound
+    tf_sup = tf_E + theta*apc/delta * rho_Liph # rho_Liph as an estimation for sup rho[Lip(h)]
+    tf_E += 1/delta**2*(1/jnp.sqrt(m)*rho_Liph**2 + 2*apc*theta*rho_Liph)
+    constants_sup = theta*(1+1/delta)+jnp.log(1/delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))
+    constants_E = constants_sup +jnp.sqrt(m)*(apc*theta/delta)**2
+    bound_E = tf_E + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants_E
+    bound_sup = tf_sup + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants_sup
+    return [bound_E,bound_sup]
 
 def l_empirical_risk_unbounded(A,b,arch,mask):
     #lambda function for the computation of the empirical risk (to compute the gradient over)
@@ -180,7 +161,8 @@ def error_unbounded(it_params,Z,A_c_e,b_c_e,dim,arch,mask,piParams,m,delta,rng,s
     realizations = realizations.reshape((N//shard_size,shard_size,dim))
     
     error=0
-    pac = 0 
+    pac_E = 0 
+    pac_sup = 0 
     theta = Z.thetatilder
     VarZtrx = Z.truncated_covs_between_all_members_of_cone()[1][0][0]
     for el in realizations:
@@ -188,13 +170,16 @@ def error_unbounded(it_params,Z,A_c_e,b_c_e,dim,arch,mask,piParams,m,delta,rng,s
       e = MC_train_e(el)
       error += jnp.sum(e)
       #jax.debug.print("realiyation shape: {}", el.shape)
-      p = pac_unbounded(A_c_e,el,piParams,it_params,dim,arch,mask,theta,VarZtrx,m,delta) # A instead of A_c_e, but rethink in ways I shard
-      pac += jnp.sum(p)
+      pE,psup = pac_unbounded(A_c_e,el,piParams,it_params,dim,arch,mask,theta,VarZtrx,m,delta) # A instead of A_c_e, but rethink in ways I shard
+      pac_E += jnp.sum(pE)
+      pac_sup += jnp.sum(psup)
     error=error/N
-    pac=pac/N
+    pac_E=pac_E/N
+    pac_sup=pac_sup/N
     jax.debug.print("error {}", error)
-    jax.debug.print("pac {}", pac)
-    return [error,pac]
+    jax.debug.print("pac_E {}", pac_E)
+    jax.debug.print("pac_sup {}", pac_sup)
+    return [error,pac_E,pac_sup]
 
 
 def coordit_pretraining(Z,preT_coord,preT_d_slicing,a,c,p,arch,mask,dim,eps,init_scale=0.0016,pretraining_learning_rate=0.01): # not done for unbounded case yet
@@ -464,8 +449,10 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         milestone_train_error = jnp.array([])
         b_c_e_stacked=jnp.empty((0,Ncones_test-1))
         test_error = jnp.array([])
-        bound_train = jnp.array([])
-        bound_test = jnp.array([])
+        bound_train_E = jnp.array([])
+        bound_train_sup = jnp.array([])
+        bound_test_E = jnp.array([])
+        bound_test_sup = jnp.array([])
       
         milestone_seeds.append(jax.random.key(epoch))
 
@@ -483,27 +470,29 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
 
         for ls_i in range((x_size-2*p*c)//shard_size): 
           #stores the pac bound values accordingly
-              mile_train_e,pac_train = e_mapped_train(params[ls_i],Acones_s[ls_i],bcones_s[ls_i])
+              mile_train_e,pac_train_E,pac_train_sup = e_mapped_train(params[ls_i],Acones_s[ls_i],bcones_s[ls_i])
               milestone_train_error=jnp.hstack([milestone_train_error,mile_train_e])
-              bound_train = jnp.hstack([bound_train,pac_train])
+              bound_train_E = jnp.hstack([bound_train_E,pac_train_E])
+              bound_train_sup = jnp.hstack([bound_train_sup,pac_train_sup])
 
           #extraction of the test set cones
               A_c_e,b_c_e=jax.vmap(finalStep)(list_shards[ls_i],params[ls_i]) #save b_c_e_stacked
               b_c_e_stacked=jnp.vstack([b_c_e_stacked,b_c_e])
           #computation of the out-of-sample pac bound
-              test_e,pac_test= e_mapped_test(params[ls_i],A_c_e,b_c_e)
+              test_e,pac_test_E, pac_test_sup= e_mapped_test(params[ls_i],A_c_e,b_c_e)
               test_error=jnp.hstack([test_error,test_e])   
-              bound_test = jnp.hstack([bound_test,pac_test])  
+              bound_test_E = jnp.hstack([bound_test_E,pac_test_E])  
+              bound_test_sup = jnp.hstack([bound_test_sup,pac_test_sup])  
 
-        if jnp.mean(bound_train+milestone_train_error,axis=0)<min_error: 
+        if jnp.mean(bound_train_E+milestone_train_error,axis=0)<min_error: 
         #updates the best parameters                
           min_it=epoch
-          min_error=jnp.mean(bound_train+milestone_train_error,axis=0)
+          min_error=jnp.mean(bound_train_E+milestone_train_error,axis=0)
           best_params=params_stacked
 
       #stores in the current epoch group all the measures for future diagnostic 
-        hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train,milestone_train_error,test_error,bound_test,val_jest_batch,val_grad_batch,b_c_e_stacked]
-        names=[ 'a','lambda', 'm', 'bound_train', 'train_errors','test_errors','bound_test','val_jest','val_grad','cones_test']
+        hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked]
+        names=[ 'a','lambda', 'm', 'bound_train_E','bound_train_sup', 'train_errors','test_errors','bound_test_E','bound_test_sup','val_jest','val_grad','cones_test']
         makeh5(file_epoch,hdata,names)
 
     file_last=file_m.create_dataset('last params',data=params_stacked)
