@@ -43,7 +43,7 @@ def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,ma
   apc = A.shape[0]
   #jax.debug.print("apc tf {}", apc) ist korrekt
   rho_Liph = Lip_realizations_masked(realization) # evtl parallelisieren
-  jax.debug.print("Lip {}",rho_Liph)
+  #jax.debug.print("Lip {}",rho_Liph)
   #rho_Liph = jnp.mean(Liph)
   rho_Liph_sq = jnp.mean(jnp.power(rho_Liph,2))
   abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
@@ -386,8 +386,10 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         return [it_params,opt_state,Acones,bcones,val_jest,val_grad]
 
     
-    min_it=0 #will store the epoch index containing the best performing parameters
-    min_error=jnp.inf
+    min_it_E=0 #will store the epoch index containing the best performing parameters
+    min_it_sup=0 #will store the epoch index containing the best performing parameters
+    min_error_E=jnp.inf
+    min_error_sup=jnp.inf
     milestone_seeds=[]
 
     #initialization of data structures containing optimization history
@@ -484,11 +486,17 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
               bound_test_E = jnp.hstack([bound_test_E,pac_test_E])  
               bound_test_sup = jnp.hstack([bound_test_sup,pac_test_sup])  
 
-        if jnp.mean(bound_train_E+milestone_train_error,axis=0)<min_error: 
+        if jnp.mean(bound_train_E+milestone_train_error,axis=0)<min_error_E: 
         #updates the best parameters                
-          min_it=epoch
-          min_error=jnp.mean(bound_train_E+milestone_train_error,axis=0)
-          best_params=params_stacked
+          min_it_E=epoch
+          min_error_E=jnp.mean(bound_train_E+milestone_train_error,axis=0)
+          best_params_E=params_stacked
+
+        if jnp.mean(bound_train_sup+milestone_train_error,axis=0)<min_error_sup: 
+        #updates the best parameters                
+          min_it_sup=epoch
+          min_error_sup=jnp.mean(bound_train_E+milestone_train_error,axis=0)
+          best_params_sup=params_stacked
 
       #stores in the current epoch group all the measures for future diagnostic 
         hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked]
@@ -499,7 +507,10 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
 
     #creates the h5 group for the best parameters
     file_best=file_m.create_group('min')
-    file_best.create_dataset('min_error',data=min_error)
-    file_best.create_dataset('min iteration',data=min_it)
-    file_best.create_dataset('best params',data=best_params)
+    file_best.create_dataset('min_error_E',data=min_error_E)
+    file_best.create_dataset('min_error_sup',data=min_error_sup)
+    file_best.create_dataset('min iteration_E',data=min_it_E)
+    file_best.create_dataset('min iteration_sup',data=min_it_sup)
+    file_best.create_dataset('best params_E',data=best_params_E)
+    file_best.create_dataset('best params_sup',data=best_params_sup)
         

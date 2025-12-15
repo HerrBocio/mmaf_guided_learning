@@ -5,6 +5,7 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
 from STOU import STOU
+from params import *
 from SGE_unbounded import Optimization
 from utils import *
 import numpy as np
@@ -26,18 +27,17 @@ path='/LOCAL/jasst/results/nopreT/'
 # The hyperparameters A,c,lambda_ are already estimated
 
 
-datasetsM= ['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']#
 ids=[1]
 A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
 c_estimatedM=[1,1]
-m_batches=1000 
+
 m_test= 101
 
 Ndraws=30
 
 Ncoords=10 #max201
 lr=0.005
-h_t=[1]
+
 eps=3.
 p=1
 
@@ -57,10 +57,7 @@ print('a val',a_val,lambda_)
 
 center_pixel=5
 
-delta=.025
-inp=3
 
-archs=[[10,10,1],[30,30,1],[100,100,1],[300,300,1]]  ##,,[300,300,1],[100,100,1],
 shard_size= [8] #[8,2,1]#,2,8]#,1]#,33]#99,?
 
 #sets the variance of the reference distribution 
@@ -73,7 +70,7 @@ pretraining=[False]
 
 rescaling=False
 
-day='test'
+day='151225'
 filename=day+'_full_relu_std'
 
 for l_,boolean in enumerate(pretraining): 
@@ -82,7 +79,7 @@ for l_,boolean in enumerate(pretraining):
       Epochs=150
       pretraining_labels='_preT'
   else:
-      Epochs=60
+      Epochs=epochs_nopreT #60
       pretraining_labels=''
   for i,arch in enumerate(archs): # reversed
     #loops over architectures

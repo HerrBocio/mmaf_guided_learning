@@ -79,7 +79,7 @@ Ncrps=100
 
 Ndraws=1000          
 c=1
-p=1
+
 
 calibration=False
 start=10-1
