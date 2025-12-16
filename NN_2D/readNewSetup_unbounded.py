@@ -52,7 +52,7 @@ figure_name="depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
 
 
 a_val=[8,8]
-p=[p]
+#[p]
 
 delta=0.025
 A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
@@ -70,9 +70,6 @@ Ncones_test=101
 
 Ncrps=100
 
-Ndraws=1000          
-c=1
-p=1
 
 calibration=False
 start=10-1

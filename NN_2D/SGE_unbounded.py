@@ -29,7 +29,6 @@ def target_func_unbounded_KL(piParams,rhoParams,NNsize,m):
 
 def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta):#,return_lip = False): 
   tf = empirical_risk_unbounded(A,b,realization,arch,mask)
-  #jax.debug.print("A shape tf: {}", A.shape)
 
   def pozzo(params,mask,arch):
       pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
@@ -37,14 +36,9 @@ def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,ma
   realization=pozzo(realization,mask,arch)
   forward=lambda alpha:(ffnn_forward_pass(alpha,realization))
   hX=jax.vmap(forward,in_axes=1)(A)
-  #jax.debug.print("hX shape tf before reshape: {}", hX.shape)
   hX=hX.reshape((hX.shape[0]))
-  #jax.debug.print("hX shape tf after reshape: {}", hX.shape)
   apc = A.shape[0]
-  #jax.debug.print("apc tf {}", apc) ist korrekt
-  rho_Liph = Lip_realizations_masked(realization) # evtl parallelisieren
-  #jax.debug.print("Lip {}",rho_Liph)
-  #rho_Liph = jnp.mean(Liph)
+  rho_Liph = Lip_realizations_masked(realization)
   rho_Liph_sq = jnp.mean(jnp.power(rho_Liph,2))
   abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
   abs_E_hX = jax.vmap(abs_mean)(hX)
@@ -61,11 +55,10 @@ def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,ma
 
 def tf_unbounded(A,b,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta):
    #h = dist_sample(rhoParams,1)
-   return lambda beta: empirical_risk_unbounded(A,b,beta,arch,mask) 
-   #return lambda beta: target_func_unbouded_sampling_from_rho(A,b,beta,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta)
+   #return lambda beta: empirical_risk_unbounded(A,b,beta,arch,mask) 
+   return lambda beta: target_func_unbouded_sampling_from_rho(A,b,beta,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta)
 
 def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,m,delta):
-    #jax.debug.print("realizations unmasked shape: {}", realizations.shape)
     def pozzo(params,mask,arch):
       pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
       return pozzo
@@ -128,19 +121,14 @@ def empirical_risk_unbounded(A,b,realization,arch,mask):
     #computes the loss function over all the distribution draws
     empR=lambda beta : ffnn_loss_forward_pass_unbounded(A,beta,b)
     eU=empR(realization)
-    #jax.debug.print("eu: {}",eU)
     return eU
 
 def empirical_val_unbounded(A,b,realization,arch,mask):
-    #jax.debug.print("realization shape: {}", realization.shape)
-    #jax.debug.print("mask: {}", mask)
-    #jax.debug.print("arch: {}", arch)
     def pozzo(params,mask,arch):
      pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
      return pozzo
     masking= lambda a: pozzo(a,mask,arch)
     realization=jax.vmap(masking)(realization)
-    #jax.debug.print("realizations in emp val: {}",realization[0].shape)
     empR=lambda beta : ffnn_loss_forward_pass_unbounded(A,beta,b)
     eU=jax.vmap(empR)(realization)
     return eU
@@ -501,6 +489,8 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
       #stores in the current epoch group all the measures for future diagnostic 
         hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked]
         names=[ 'a','lambda', 'm', 'bound_train_E','bound_train_sup', 'train_errors','test_errors','bound_test_E','bound_test_sup','val_jest','val_grad','cones_test']
+        jax.debug.print('len hdata {}',len(hdata))
+        jax.debug.print('len names {}',len(names))
         makeh5(file_epoch,hdata,names)
 
     file_last=file_m.create_dataset('last params',data=params_stacked)

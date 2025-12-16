@@ -10,16 +10,20 @@ m=1000
 #print(np.log(1/delta)/np.sqrt(m))
 
 
-def func(x):
-    return [x,5+x]
-t = 0
-s=0
-N=3
+el = np.array([[1,2,7],[3,4,8],[5,6,9]])
+x= np.array([1,5])
+y=np.matmul(x,el[:-1,:]) +el[-1,:]
 
-for x in range(3):
-    p,q = func(x)
-    t +=p
-    s += q
 
-print(t/N)
-print(s/N)
+#print(el[:-1,:])
+#print(el[-1,:])
+#print(y)
+
+
+el = np.array([[1,3,5],[2,4,6],[7,8,9]])
+x= np.array([1,5])
+y=np.matmul(x,el[:-1,:]) +el[-1,:]
+
+print(el[:-1,:])
+print(el[-1,:])
+print(y)

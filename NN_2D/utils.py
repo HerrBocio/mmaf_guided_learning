@@ -178,8 +178,15 @@ def KLdiag_grad(piParams,rhoParams,NNsize):
 
 def naiveLip(weights):
   prod=1
+  #print = True
   for el in weights:
-    prod*=jnp.max(jnp.sum(jnp.abs(el), axis=0)) # TODO: bias removen?          
+    matrix = el[:-1,:]
+    #if print:
+    #    jax.debug.print("el {}",el)
+    #    jax.debug.print("matrix {}",matrix)
+    #    print = False
+    prod*=jnp.max(jnp.sum(jnp.abs(matrix), axis=0))  
+  jax.debug.print("Lip {}", prod)      
   return prod
 
 
