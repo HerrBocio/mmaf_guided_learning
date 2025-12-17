@@ -22,13 +22,7 @@ import jax.numpy as jnp
 from utils import *
 data_path="datasets_2D/" # local
 data_path="../datasets_2D/" # server
-
-pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/new_results/tables/" #'results/s_data/tables/'
-pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/new_results/figures/" #'results/s_data/figures/'
-#path='/afs/tu-chemnitz.de/project/calibration/paper_simulations/m_wise_epoch_wise/'
-
-#path='/LOCAL/prol/s_data/'#nobias/'
-path="/afs/tu-chemnitz.de/home/urz/j/jasst/new_results/nopreT/"#/LOCAL/jasst/results/nopreT/"#'/afs/tu-chemnitz.de/project/calibration/jasminDebug/'
+"#/LOCAL/jasst/results/nopreT/"#'/afs/tu-chemnitz.de/project/calibration/jasminDebug/'
 
 #
 #path='/afs/tu-chemnitz.de/project/calibration/aistatsResults/s_data_old/'
@@ -45,8 +39,7 @@ else:
   Epochs=range(1,epochs_nopreT+1) # aka 7 #range(1,61) #
   Nepochs=epochs_nopreT #60#len(Epochs)
   preTlabel=''
-  
-day = 'testtest'#day='1512'
+
 file_name= day+'_full_relu_std'+preTlabel#full_tanh_new_setup,full_relu_new_setup
 figure_name="depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
 
@@ -99,6 +92,8 @@ for current_id in reversed(range(len(datasetsM))):
 
     
     for i,arch in enumerate((archs)):#reversed 
+            if not os.path.exists(pathT):
+                      os.makedirs(pathT)
             fVal=open(pathT+'Table_validation_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
             fVal.write('Train Err. & CRPS & RMSE\n\n')
 
@@ -151,6 +146,7 @@ for current_id in reversed(range(len(datasetsM))):
                       os.makedirs(pathPrior)
                       print("figures folder created")
 
+
                   empirical_obj=np.array([])
                   pac_obj=np.array([])
               
@@ -197,13 +193,16 @@ for current_id in reversed(range(len(datasetsM))):
                     last_params=np.array(m_g.get('last params'))
                     b_g=m_g.get('min')
                     #print(b_g.keys())
-                    best_params=jnp.array(b_g.get('best params'))
+                    best_params_E=jnp.array(b_g.get('best params_E'))
+                    best_params_sup=jnp.array(b_g.get('best params_sup'))
                     #print(last_params.shape)
-                    min_error=np.array(b_g.get('min_error'))#-constants_train
-                    min_it=np.array(b_g.get('min iteration'))
+                    min_error_E=np.array(b_g.get('min_error_E'))#-constants_train
+                    min_error_sup=np.array(b_g.get('min_error_sup'))#-constants_train
+                    min_it_E=np.array(b_g.get('min iteration_E'))
+                    min_it_sup=np.array(b_g.get('min iteration_sup'))
                     data_test=np.array(m_g.get('data_test'))
                     #print(data_test.shape)
-                    e_g=m_g.get('epoch'+str(min_it))
+                    e_g=m_g.get('epoch'+str(min_it_sup))
                     bound_min_E=np.array(e_g.get('bound_test_E'))#-constants_test)
                     bound_min_sup=np.array(e_g.get('bound_test_sup'))#-constants_test)
                     emp_min=np.array(e_g.get('test_errors'))
@@ -215,15 +214,15 @@ for current_id in reversed(range(len(datasetsM))):
                     
                     rng=jax.random.key(Nepochs)
                     
-                    e_g=m_g.get('epoch'+str(min_it))
+                    e_g=m_g.get('epoch'+str(min_it_sup))
                   
                     emp_risk =np.array( e_g.get('val_jest'))
                     emp_risk=np.mean(emp_risk)
-                    kl_mapped=lambda beta: KLdiag_from_log_scale(piParams,beta,d)#(piParams,rhoParams,NNsize):
+                    #kl_mapped=lambda beta: KLdiag_from_log_scale(piParams,beta,d)#(piParams,rhoParams,NNsize):
 
-                    KL=jax.vmap(kl_mapped)(best_params)
-                    KL=jnp.mean(KL)
-                    print('kl ',KL)
+                    #KL=jax.vmap(kl_mapped)(best_params)
+                    #KL=jnp.mean(KL)
+                    #print('kl ',KL)
                     #chi2_gau_map=lambda beta: chi2_diag_gaussians(beta,piParams)
                     #ChiSq=jax.vmap(chi2_gau_map)(best_params)
                     #Chi2=jnp.mean(ChiSq)
@@ -232,7 +231,7 @@ for current_id in reversed(range(len(datasetsM))):
                     #true_bound=truePacFun(best_params,ChiSq)
                     true_bound_E = bound_min_E #?? TODO
                     true_bound_sup = bound_min_sup #?? TODO
-                    safe_mean=lambda beta: beta/best_params.shape[0]
+                    safe_mean=lambda beta: beta/best_params_sup.shape[0]
                     #chi_mean=jax.vmap(safe_mean)(ChiSq)
                     #Chi2=jnp.sum(chi_mean)
                     #print('chi2',Chi2)
@@ -248,7 +247,7 @@ for current_id in reversed(range(len(datasetsM))):
                     m_e_f_validation=np.zeros((0,Ndraws,1))
                     #print(data_validation.shape)
                     for n1 in range(p*c,data_validation.shape[0]-p*c):
-                       coord_e_f=multi_ef_validation(data_validation[n1-p*c:n1+p*c+1,-2],best_params[n1-p*c,:,:],inp,arch,mask,Ndraws,1,rng)
+                       coord_e_f=multi_ef_validation(data_validation[n1-p*c:n1+p*c+1,-2],best_params_sup[n1-p*c,:,:],inp,arch,mask,Ndraws,1,rng)
                        #print(i,coord_e_f.shape)
                        m_e_f_validation=np.vstack([m_e_f_validation,coord_e_f.reshape((1,*coord_e_f.shape))])
                     #print(np.amax(m_e_f[0,:,:],axis=0).shape)
@@ -265,10 +264,11 @@ for current_id in reversed(range(len(datasetsM))):
                       
                     #print(np.array(crps[0]).shape)
                     qs=[.025,.05,.1,.15,.2,.25,.3,.35,.4,.45]#np.linspace(0.05,.45,10)##np.linspace(0.05,.45,10)
-                    qs_label=['5%','10%','20%','30%','40%','50%','60%','70%','80%','90%']#print(crps)
+                    qs_label=['5%','10%','20%','30%','40%','50%','60%','70%','80%','90%']
+                    print("CRPS:    ",crps)
        
-                    print(np.round(min_error,decimals=4),'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',min_it,file=fVal)    
-                    print(np.round(min_error,decimals=4),'&','&',min_it,file=fTrain)    
+                    print(np.round(min_error_sup,decimals=4),'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',min_it_sup,file=fVal)    
+                    print(np.round(min_error_sup,decimals=4),'&','&',min_it_sup,file=fTrain)    
                     
 
 
@@ -277,7 +277,7 @@ for current_id in reversed(range(len(datasetsM))):
                     m_e_f_test=np.zeros((0,Ndraws,Ncones_test-1))
                     #print(data_test.shape)
                     for i in range(p*c,data_test.shape[0]-p*c):
-                       coord_e_f=multi_ef_test(data_test[i-p*c:i+p*c+1,-(Ncones_test-1)*a_val[current_id]-2::a_val[current_id]],best_params[i-p*c,:,:],inp,arch,mask,Ndraws,Ncones_test-1,rng)
+                       coord_e_f=multi_ef_test(data_test[i-p*c:i+p*c+1,-(Ncones_test-1)*a_val[current_id]-2::a_val[current_id]],best_params_sup[i-p*c,:,:],inp,arch,mask,Ndraws,Ncones_test-1,rng)
                        #print(i,coord_e_f.shape)
                        m_e_f_test=np.vstack([m_e_f_test,coord_e_f.reshape((1,*coord_e_f.shape))])
                     #print(m_e_f_test )

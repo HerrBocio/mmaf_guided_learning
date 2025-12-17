@@ -23,12 +23,7 @@ from utils import *
 data_path="datasets_2D/" # local
 #data_path="../datasets_2D/" # server
 
-pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/new_results/tables/" #'results/s_data/tables/'
-pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/new_results/figures/" #'results/s_data/figures/'
-#path='/afs/tu-chemnitz.de/project/calibration/paper_simulations/m_wise_epoch_wise/'
-
-#path='/LOCAL/prol/s_data/'#nobias/'
-path="/afs/tu-chemnitz.de/home/urz/j/jasst/1512results/nopreT/"#/LOCAL/jasst/results/nopreT/"#'/afs/tu-chemnitz.de/project/calibration/jasminDebug/'
+#/LOCAL/jasst/results/nopreT/"#'/afs/tu-chemnitz.de/project/calibration/jasminDebug/'
 
 #
 #path='/afs/tu-chemnitz.de/project/calibration/aistatsResults/s_data_old/'
@@ -46,7 +41,7 @@ else:
   Nepochs=epochs_nopreT #60#len(Epochs)
   preTlabel=''
   
-day = 'testtest'#day='1512'
+
 file_name= day+'_full_relu_std'+preTlabel#full_tanh_new_setup,full_relu_new_setup
 figure_name="depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
 
