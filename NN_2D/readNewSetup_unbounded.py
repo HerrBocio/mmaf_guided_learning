@@ -99,16 +99,16 @@ for current_id in reversed(range(len(datasetsM))):
 
     
     for i,arch in enumerate((archs)):#reversed 
-            #fVal=open(pathT+'Table_validation_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
-            #fVal.write('Train Err. & CRPS & RMSE\n\n')
+            fVal=open(pathT+'Table_validation_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
+            fVal.write('Train Err. & CRPS & RMSE\n\n')
 
-            #fTrain=open(pathT+'Table_training_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
-            #fTrain.write('Training E. & Lin. PAC & True PAC\n\n')
+            fTrain=open(pathT+'Table_training_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
+            fTrain.write('Training E. & Lin. PAC & True PAC\n\n')
                             
             
             
-            #fTest=open(pathT+'Table_TestTrain_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
-            #fTest.write('KL train & Chi2 & pac lin & true pac  &  CRPS & RMSE & min it  \n\n') #Test Err. &
+            fTest=open(pathT+'Table_TestTrain_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
+            fTest.write('KL train & Chi2 & pac lin & true pac  &  CRPS & RMSE & min it  \n\n') #Test Err. &
         
 
             mask=mask_gen(inp,arch)
@@ -136,11 +136,17 @@ for current_id in reversed(range(len(datasetsM))):
                   #Lip=LipC(piParams,d,mask,[inp,*arch])
 
               
-                  #print('pir', pir,'\n',file=fVal)
-                  #print('pir', pir,'\n',file=fTest)
+                  print('pir', pir,'\n',file=fVal)
+                  print('pir', pir,'\n',file=fTest)
               
                   print(pir,arch,datasetsM[current_id])
-                  pathPrior=pathF+datasetsM[current_id]+'/'+'prior'+str(pir)+'/'+day+'/'+str(dimComp([inp,*arch])) +'/'
+                  pathPrior = os.path.join(
+                      pathF,
+                      datasetsM[current_id],
+                      'prior' + str(pir),
+                      day,
+                      str(dimComp([inp, *arch]))
+                  )
                   if not os.path.exists(pathPrior):
                       os.makedirs(pathPrior)
                       print("figures folder created")
@@ -171,7 +177,14 @@ for current_id in reversed(range(len(datasetsM))):
                   rank_es_epoch=np.array([])
                   
                   for m in range(len(m_batches)): 
-                    filename = path+'prior' + str(pir) +'var/' +file_name +str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.h5'
+                    filename = os.path.join(
+                        path,
+                        'prior' + str(pir) + 'var',
+                        file_name + str(dimComp([inp, *arch])) + '_' +
+                        str(datasetsM[current_id]) + '_a' + str(a_val) +
+                        '_pir' + str(pir) + '_m' + str(m_batches[m]) +
+                        '_Epoch_' + str(Nepochs) + '.h5'
+                    )
                     try:
                       hf = h5py.File(filename, 'r')
                     except OSError as e:
@@ -254,8 +267,8 @@ for current_id in reversed(range(len(datasetsM))):
                     qs=[.025,.05,.1,.15,.2,.25,.3,.35,.4,.45]#np.linspace(0.05,.45,10)##np.linspace(0.05,.45,10)
                     qs_label=['5%','10%','20%','30%','40%','50%','60%','70%','80%','90%']#print(crps)
        
-                    #print(np.round(min_error,decimals=4),'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',min_it,file=fVal)    
-                    #print(np.round(min_error,decimals=4),'&','&',min_it,file=fTrain)    
+                    print(np.round(min_error,decimals=4),'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',min_it,file=fVal)    
+                    print(np.round(min_error,decimals=4),'&','&',min_it,file=fTrain)    
                     
 
 
@@ -406,8 +419,8 @@ for current_id in reversed(range(len(datasetsM))):
                   plt.savefig(pathPrior+figure_name+'_lastEpochslog_'+str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png')
                   plt.close()
                   """
-#fVal.close()              
-#fTest.close()
+fVal.close()              
+fTest.close()
 hf.close()
 
             

@@ -1,3 +1,4 @@
+from params import *
 import h5py
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
@@ -22,12 +23,12 @@ from utils import *
 data_path="datasets_2D/" # local
 #data_path="../datasets_2D/" # server
 
-pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/results/tables/" #'results/s_data/tables/'
-pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/results/tables/" #'results/s_data/figures/'
+pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/new_results/tables/" #'results/s_data/tables/'
+pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/new_results/figures/" #'results/s_data/figures/'
 #path='/afs/tu-chemnitz.de/project/calibration/paper_simulations/m_wise_epoch_wise/'
 
 #path='/LOCAL/prol/s_data/'#nobias/'
-path="/afs/tu-chemnitz.de/home/urz/j/jasst/results/nopreT/"#/LOCAL/jasst/results/nopreT/"#'/afs/tu-chemnitz.de/project/calibration/jasminDebug/'
+path="/afs/tu-chemnitz.de/home/urz/j/jasst/1512results/nopreT/"#/LOCAL/jasst/results/nopreT/"#'/afs/tu-chemnitz.de/project/calibration/jasminDebug/'
 
 #
 #path='/afs/tu-chemnitz.de/project/calibration/aistatsResults/s_data_old/'
@@ -41,58 +42,44 @@ if pretraining:
   Nepochs=150#len(Epochs)
   preTlabel='_preT'
 else:
-  Epochs=range(1,61) #
-  Nepochs=60#len(Epochs)
+  Epochs=range(1,epochs_nopreT+1) # aka 7 #range(1,61) #
+  Nepochs=epochs_nopreT #60#len(Epochs)
   preTlabel=''
   
-day='undefinedundefined'
+day = 'testtest'#day='1512'
 file_name= day+'_full_relu_std'+preTlabel#full_tanh_new_setup,full_relu_new_setup
-figure_name=day+'_depth_relu_std'+preTlabel
-
-datasetsM=['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']
+figure_name="depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
 
 
-h_t=[1]
 a_val=[8,8]
-p=[1]
-eps=3.
+#[p]
 
-delta=1./0.025
+delta=0.025
 A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
 c_estimatedM=[1,1]
 
 
-inp=3
-#archs=[[30,30,1],[100,100,1],[300,300,1]]
-#archs=[[10,10,1]]#[[30,30,1],[100,100,1],[300,300,1]]  ##,,[300,300,1],[100,100,1],
-
-#archs= [ [15,15,15,15,15,1],[50,50,50,50,50,1],[150,150,150,150,150,1] ]
-archs=[[10,10,1]]
 
 piRescaling=list(range(10,230,20))
-m_batches=[1000] #tra
 
 
-
+m_batches = [m_batches]
 Nbatches=124 # for N=1e6 and m=1e3
 Ncoords=10
 Ncones_test=101
 
 Ncrps=100
 
-Ndraws=1000          
-c=1
-p=1
 
 calibration=False
 start=10-1
 
 
-constants_train=2*np.log(1./0.025)/np.sqrt(m_batches[0]) + eps**2/(2*np.sqrt(m_batches[0]))
+#constants_train=2*np.log(1./0.025)/np.sqrt(m_batches[0]) + eps**2/(2*np.sqrt(m_batches[0]))
 
-constants_test=2*np.log(1./0.025)/np.sqrt(Ncones_test-1) + eps**2/(2*np.sqrt(Ncones_test-1))
+#constants_test=2*np.log(1./0.025)/np.sqrt(Ncones_test-1) + eps**2/(2*np.sqrt(Ncones_test-1))
 
-constants_test_t=np.log(1./0.025)/np.sqrt(Ncones_test-1) + eps**2/(2*np.sqrt(Ncones_test-1))
+#constants_test_t=np.log(1./0.025)/np.sqrt(Ncones_test-1) + eps**2/(2*np.sqrt(Ncones_test-1))
 
 pre_ranks=["multivariate_rank","average_rank","band_depth","mean","variance","energy_score"]
 arch_x_val=[1e4,1e5] #1,1e1,1e2,
@@ -112,16 +99,16 @@ for current_id in reversed(range(len(datasetsM))):
 
     
     for i,arch in enumerate((archs)):#reversed 
-            #fVal=open(pathT+'Table_validation_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
-            #fVal.write('Train Err. & CRPS & RMSE\n\n')
+            fVal=open(pathT+'Table_validation_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
+            fVal.write('Train Err. & CRPS & RMSE\n\n')
 
-            #fTrain=open(pathT+'Table_training_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
-            #fTrain.write('Training E. & Lin. PAC & True PAC\n\n')
+            fTrain=open(pathT+'Table_training_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
+            fTrain.write('Training E. & Lin. PAC & True PAC\n\n')
                             
             
             
-            #fTest=open(pathT+'Table_TestTrain_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
-            #fTest.write('KL train & Chi2 & pac lin & true pac  &  CRPS & RMSE & min it  \n\n') #Test Err. &
+            fTest=open(pathT+'Table_TestTrain_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
+            fTest.write('KL train & Chi2 & pac lin & true pac  &  CRPS & RMSE & min it  \n\n') #Test Err. &
         
 
             mask=mask_gen(inp,arch)
@@ -146,14 +133,20 @@ for current_id in reversed(range(len(datasetsM))):
                     piParams=[jnp.zeros(d),piScale]
                   #print(piParams)
 
-                  Lip=LipC(piParams,d,mask,[inp,*arch])
+                  #Lip=LipC(piParams,d,mask,[inp,*arch])
 
               
-                  #print('pir', pir,'\n',file=fVal)
-                  #print('pir', pir,'\n',file=fTest)
+                  print('pir', pir,'\n',file=fVal)
+                  print('pir', pir,'\n',file=fTest)
               
                   print(pir,arch,datasetsM[current_id])
-                  pathPrior=pathF+datasetsM[current_id]+'/'+'prior'+str(pir)+'/'+day+'/'+str(dimComp([inp,*arch])) +'/'
+                  pathPrior = os.path.join(
+                      pathF,
+                      datasetsM[current_id],
+                      'prior' + str(pir),
+                      day,
+                      str(dimComp([inp, *arch]))
+                  )
                   if not os.path.exists(pathPrior):
                       os.makedirs(pathPrior)
                       print("figures folder created")
@@ -161,10 +154,12 @@ for current_id in reversed(range(len(datasetsM))):
                   empirical_obj=np.array([])
                   pac_obj=np.array([])
               
-                  bound_train=[]
+                  bound_train_E=[]
+                  bound_train_sup=[]
                   train_errors=[]
 
-                  bound_test=[]
+                  bound_test_E=[]
+                  bound_test_sup=[]
                   test_errors=[]
                   
                   rank_mvr_stacked=np.array([])
@@ -181,8 +176,21 @@ for current_id in reversed(range(len(datasetsM))):
                   rank_var_epoch=np.array([])
                   rank_es_epoch=np.array([])
                   
-                  for m in range(len(m_batches)):  
-                    hf=h5py.File(path+'prior' + str(pir) +'var/' +file_name +str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.h5','r')
+                  for m in range(len(m_batches)): 
+                    filename = os.path.join(
+                        path,
+                        'prior' + str(pir) + 'var',
+                        file_name + str(dimComp([inp, *arch])) + '_' +
+                        str(datasetsM[current_id]) + '_a' + str(a_val) +
+                        '_pir' + str(pir) + '_m' + str(m_batches[m]) +
+                        '_Epoch_' + str(Nepochs) + '.h5'
+                    )
+                    try:
+                      hf = h5py.File(filename, 'r')
+                    except OSError as e:
+                       print(filename," FEHLER")
+                       continue
+                    #hf=h5py.File(path+'prior' + str(pir) +'var/' +file_name +str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.h5','r')
                     m_g=hf.get('m'+str(m_batches[m]))                    
                     print(hf.keys())
                     print(m_g.keys())
@@ -191,15 +199,17 @@ for current_id in reversed(range(len(datasetsM))):
                     #print(b_g.keys())
                     best_params=jnp.array(b_g.get('best params'))
                     #print(last_params.shape)
-                    min_error=np.array(b_g.get('min_error'))-constants_train
+                    min_error=np.array(b_g.get('min_error'))#-constants_train
                     min_it=np.array(b_g.get('min iteration'))
                     data_test=np.array(m_g.get('data_test'))
                     #print(data_test.shape)
                     e_g=m_g.get('epoch'+str(min_it))
-                    bound_min=np.array(e_g.get('bound_test')-constants_test)
+                    bound_min_E=np.array(e_g.get('bound_test_E'))#-constants_test)
+                    bound_min_sup=np.array(e_g.get('bound_test_sup'))#-constants_test)
                     emp_min=np.array(e_g.get('test_errors'))
-                    test_min=jnp.mean(bound_min+emp_min)
-                    pac_test_min= test_min + constants_test_t
+                    test_min_E=jnp.mean(bound_min_E+emp_min)
+                    test_min_sup=jnp.mean(bound_min_sup+emp_min)
+                    pac_test_min= test_min_E# + constants_test_t
                     b_test=np.array(e_g.get('cones_test'))
 
                     
@@ -214,19 +224,24 @@ for current_id in reversed(range(len(datasetsM))):
                     KL=jax.vmap(kl_mapped)(best_params)
                     KL=jnp.mean(KL)
                     print('kl ',KL)
-                    chi2_gau_map=lambda beta: chi2_diag_gaussians(jnp.exp(beta),jnp.exp(piParams))
-                    ChiSq=jax.vmap(chi2_gau_map)(best_params)
+                    #chi2_gau_map=lambda beta: chi2_diag_gaussians(beta,piParams)
+                    #ChiSq=jax.vmap(chi2_gau_map)(best_params)
                     #Chi2=jnp.mean(ChiSq)
                     #print('chi2 ',Chi2)
-                    truePacFun=jax.vmap(lambda beta,gamma: truePAC(beta,piParams,eps,Lip,delta,inp,Ncones_test,alph,p,d,arch,gamma),in_axes=(0,0))
-                    true_bound=truePacFun(best_params,ChiSq)
+                    #truePacFun=jax.vmap(lambda beta,gamma: truePAC(beta,piParams,eps,Lip,delta,inp,Ncones_test,alph,p,d,arch,gamma),in_axes=(0,0))
+                    #true_bound=truePacFun(best_params,ChiSq)
+                    true_bound_E = bound_min_E #?? TODO
+                    true_bound_sup = bound_min_sup #?? TODO
                     safe_mean=lambda beta: beta/best_params.shape[0]
-                    chi_mean=jax.vmap(safe_mean)(ChiSq)
-                    Chi2=jnp.sum(chi_mean)
-                    print('chi2',Chi2)
-                    print(emp_min + true_bound)
-                    pac_true_min =jnp.mean( true_bound+emp_min)
-                    print('true pac',pac_true_min)   
+                    #chi_mean=jax.vmap(safe_mean)(ChiSq)
+                    #Chi2=jnp.sum(chi_mean)
+                    #print('chi2',Chi2)
+                    print("emp_min + true_bound_E:", emp_min + true_bound_E)
+                    print("emp_min + true_bound_sup:", emp_min + true_bound_sup)
+                    pac_true_min_E =jnp.mean( true_bound_E+emp_min)
+                    pac_true_min_sup =jnp.mean( true_bound_sup+emp_min)
+                    print('true pac E',pac_true_min_E)   
+                    print('true pac sup',pac_true_min_sup)   
                     ##### TRAIN #####
                     
                      
@@ -252,8 +267,8 @@ for current_id in reversed(range(len(datasetsM))):
                     qs=[.025,.05,.1,.15,.2,.25,.3,.35,.4,.45]#np.linspace(0.05,.45,10)##np.linspace(0.05,.45,10)
                     qs_label=['5%','10%','20%','30%','40%','50%','60%','70%','80%','90%']#print(crps)
        
-                    #print(np.round(min_error,decimals=4),'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',min_it,file=fVal)    
-                    #print(np.round(min_error,decimals=4),'&','&',min_it,file=fTrain)    
+                    print(np.round(min_error,decimals=4),'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',min_it,file=fVal)    
+                    print(np.round(min_error,decimals=4),'&','&',min_it,file=fTrain)    
                     
 
 
@@ -300,7 +315,8 @@ for current_id in reversed(range(len(datasetsM))):
                         #data_test=np.array(e_g.get('cones_test'))
                         #print(data_test[:,0])
                         #e_f_inv= np.array(e_g.get('e_f_inv'))
-                        bound_train.append(np.mean( np.array(e_g.get('bound_train')))-constants_train)
+                        bound_train_E.append(np.mean( np.array(e_g.get('bound_train_E'))))#-constants_train)
+                        bound_train_sup.append(np.mean( np.array(e_g.get('bound_train_sup'))))#-constants_train)
                         train_errors.append( np.mean(np.array(e_g.get('train_errors'))))
                         #min_bound_train.append(np.mean( np.array(e_g.get('min bound'))))
                         
@@ -308,7 +324,8 @@ for current_id in reversed(range(len(datasetsM))):
                         #arams=jnp.
                         #print(params[0].shape)
                         #print(np.array(e_g.get('best_paramsmin error')))
-                        bound_test.append(np.mean( np.array(e_g.get('bound_test')))-constants_test)
+                        bound_test_E.append(np.mean( np.array(e_g.get('bound_test_E'))))#-constants_test)
+                        bound_test_sup.append(np.mean( np.array(e_g.get('bound_test_sup'))))#-constants_test)
                         test_errors.append(np.mean(np.array(e_g.get('test_errors'))))
                         empirical_obj=np.hstack([empirical_obj,np.mean(np.array(e_g.get('val_jest')),axis=1)])
                         pac_obj=np.hstack([pac_obj,np.mean(np.array(e_g.get('val_grad')),axis=1)])
@@ -317,10 +334,10 @@ for current_id in reversed(range(len(datasetsM))):
                   #print(e_f.shape)
                   
                   
-                  #log entire epochs plots
+                  #log entire epochs plots - E
                   plt.figure(figsize=(12, 10))                  
                   plt.subplot(311)
-                  plt.plot(np.arange(1,len(bound_train)+1),np.array(bound_train)+np.array(train_errors),linewidth=1,color='black')
+                  plt.plot(np.arange(1,len(bound_train_E)+1),np.array(bound_train_E)+np.array(train_errors),linewidth=1,color='black')
                   plt.yscale("log")
                   plt.xlabel("epochs")
                   plt.ylabel("av. train. error")
@@ -328,7 +345,7 @@ for current_id in reversed(range(len(datasetsM))):
                   #plt.annotate('bound validation set '+str(bou) ,xy=(0,-0.9),fontsize='x-small')
 
                   plt.subplot(312)
-                  plt.plot(np.arange(1,len(bound_test)+1),np.array(bound_test)+np.array(test_errors),linewidth=1,color='blue')
+                  plt.plot(np.arange(1,len(bound_test_E)+1),np.array(bound_test_E)+np.array(test_errors),linewidth=1,color='blue')
                   plt.yscale("log")
                   plt.xlabel("epochs")
                   plt.ylabel("av. test error")
@@ -341,15 +358,43 @@ for current_id in reversed(range(len(datasetsM))):
                   plt.ylabel("obj function value")
                   plt.legend(['av. obj function'])
                   
-                  
-                  plt.savefig(pathPrior+figure_name+'_fullEpochslog_'+str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png')
+                  savename = (pathPrior+figure_name+'_fullEpochslog_E_'+str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png').replace("/","-")
+                  plt.savefig(savename)
                   plt.close()
 
+                  #log entire epochs plots - sup
+                  plt.figure(figsize=(12, 10))                  
+                  plt.subplot(311)
+                  plt.plot(np.arange(1,len(bound_train_sup)+1),np.array(bound_train_sup)+np.array(train_errors),linewidth=1,color='black')
+                  plt.yscale("log")
+                  plt.xlabel("epochs")
+                  plt.ylabel("av. train. error")
+                  plt.legend(['av. training error (bound with sup)'])
+                  #plt.annotate('bound validation set '+str(bou) ,xy=(0,-0.9),fontsize='x-small')
 
+                  plt.subplot(312)
+                  plt.plot(np.arange(1,len(bound_test_sup)+1),np.array(bound_test_sup)+np.array(test_errors),linewidth=1,color='blue')
+                  plt.yscale("log")
+                  plt.xlabel("epochs")
+                  plt.ylabel("av. test error")
+                  plt.legend(['av. test test error (bound with sup)'])
+                  
+                  plt.subplot(313)
+                  plt.plot(np.arange(1,len(pac_obj)+1),pac_obj+empirical_obj,linewidth=1,color='red')
+                  plt.yscale("log")
+                  plt.xlabel("iterations")
+                  plt.ylabel("obj function value")
+                  plt.legend(['av. obj function (bound with E)'])
+                  
+                  savename = pathPrior+figure_name+'_fullEpochslog_sup_'+str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png'.replace("/","-")
+                  plt.savefig(savename)
+                  plt.close()
+
+                  """
                   #log last epochs plots
                   plt.figure(figsize=(12,10))                  
                   plt.subplot(311)
-                  plt.plot(np.arange(start+1,len(bound_train)+1),np.array(bound_train[start:])+np.array(train_errors[start:]),linewidth=1,color='black')
+                  plt.plot(np.arange(start+1,len(bound_train_E)+1),np.array(bound_train_E[start:])+np.array(train_errors[start:]),linewidth=1,color='black')
                   plt.yscale("log")
                   plt.xlabel("epochs")
                   plt.ylabel("av. train error")
@@ -373,9 +418,9 @@ for current_id in reversed(range(len(datasetsM))):
                   
                   plt.savefig(pathPrior+figure_name+'_lastEpochslog_'+str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png')
                   plt.close()
-
-#fVal.close()              
-#fTest.close()
+                  """
+fVal.close()              
+fTest.close()
 hf.close()
 
             

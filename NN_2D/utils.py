@@ -6,6 +6,9 @@ from jax import random
 from scipy.io import loadmat
 from STOU import ffnnV
 
+def extract_layers(params,mask,arch):
+      layers=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
+      return layers
 
 def create_folder(new_path):
   '''
@@ -186,7 +189,7 @@ def naiveLip(weights):
     #    jax.debug.print("matrix {}",matrix)
     #    print = False
     prod*=jnp.max(jnp.sum(jnp.abs(matrix), axis=0))  
-  jax.debug.print("Lip {}", prod)      
+  #jax.debug.print("Lip {}", prod)      
   return prod
 
 
@@ -247,6 +250,13 @@ def Lip_realizations_masked(realizations_masked):
     Lips=jax.vmap(naiveLip)(realizations_masked)
     return Lips
 
+def Lip_realization_masked(realizations_masked):
+
+    '''
+    takes masked realization, outputs its Lipschitz constant
+    '''
+    Lips=naiveLip(realizations_masked)
+    return Lips
 
 # CRPS
 def crps_univ_rank(y, x):

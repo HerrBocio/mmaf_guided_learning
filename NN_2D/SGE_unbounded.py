@@ -27,18 +27,14 @@ def target_func_unbounded_KL(piParams,rhoParams,NNsize,m):
    return KLdiag_from_log_scale(piParams,rhoParams,NNsize)/jnp.sqrt(m)
    
 
-def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta):#,return_lip = False): 
+def target_func_unbouded_sampling_from_rho_E(A,b,realization,arch,mask,theta, VarZtrx,m,delta):#,return_lip = False): 
   tf = empirical_risk_unbounded(A,b,realization,arch,mask)
-
-  def pozzo(params,mask,arch):
-      pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
-      return pozzo
-  realization=pozzo(realization,mask,arch)
+  realization=extract_layers(realization,mask,arch)
   forward=lambda alpha:(ffnn_forward_pass(alpha,realization))
   hX=jax.vmap(forward,in_axes=1)(A)
   hX=hX.reshape((hX.shape[0]))
   apc = A.shape[0]
-  rho_Liph = Lip_realizations_masked(realization)
+  rho_Liph = Lip_realization_masked(realization)
   rho_Liph_sq = jnp.mean(jnp.power(rho_Liph,2))
   abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
   abs_E_hX = jax.vmap(abs_mean)(hX)
@@ -53,10 +49,37 @@ def target_func_unbouded_sampling_from_rho(A,b,realization,rhoParams,dim,arch,ma
   tf += 1/delta**2*(1/jnp.sqrt(m)*rho_Liph**2 + 2*apc*theta*rho_Liph)
   return tf
 
-def tf_unbounded(A,b,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta):
+def target_func_unbouded_sampling_from_rho_sup(A,b,realization,arch,mask,theta, VarZtrx,m,delta):#,return_lip = False): 
+  tf = empirical_risk_unbounded(A,b,realization,arch,mask)
+  realization=extract_layers(realization,mask,arch)
+  forward=lambda alpha:(ffnn_forward_pass(alpha,realization))
+  hX=jax.vmap(forward,in_axes=1)(A)
+  hX=hX.reshape((hX.shape[0]))
+  apc = A.shape[0]
+  rho_Liph = Lip_realization_masked(realization)
+  rho_Liph_sq = jnp.mean(jnp.power(rho_Liph,2))
+  abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
+  abs_E_hX = jax.vmap(abs_mean)(hX)
+  rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, rho_Liph))
+  rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
+  tf += apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
+  tf += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
+  tf += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
+  tf += rho_hXsq/(2*jnp.sqrt(m))
+  #suprho = rho_Liph # this is not sup[rho[Lip(h)]], just an estimation with one draw
+  tf += theta*apc/delta * rho_Liph
+  jax.debug.print("tf {}", tf)
+  return tf
+
+def tf_unbounded_E(A,b,arch,mask,theta, VarZtrx,m,delta):
    #h = dist_sample(rhoParams,1)
    #return lambda beta: empirical_risk_unbounded(A,b,beta,arch,mask) 
-   return lambda beta: target_func_unbouded_sampling_from_rho(A,b,beta,rhoParams,dim,arch,mask,theta, VarZtrx,m,delta)
+   return lambda beta: target_func_unbouded_sampling_from_rho_E(A,b,beta,arch,mask,theta, VarZtrx,m,delta)
+
+def tf_unbounded_sup(A,b,arch,mask,theta, VarZtrx,m,delta):
+   #h = dist_sample(rhoParams,1)
+   #return lambda beta: empirical_risk_unbounded(A,b,beta,arch,mask) 
+   return lambda beta: target_func_unbouded_sampling_from_rho_sup(A,b,beta,arch,mask,theta, VarZtrx,m,delta)
 
 def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,m,delta):
     def pozzo(params,mask,arch):
@@ -118,6 +141,7 @@ def empirical_risk_unbounded(A,b,realization,arch,mask):
      return pozzo
     #reshapes the network parameter according to the layer structure
     realization=pozzo(realization,mask,arch)
+    #jax.debug.print("realization_emprisk {}\n", realization)
     #computes the loss function over all the distribution draws
     empR=lambda beta : ffnn_loss_forward_pass_unbounded(A,beta,b)
     eU=empR(realization)
@@ -139,7 +163,6 @@ def error_unbounded(it_params,Z,A_c_e,b_c_e,dim,arch,mask,piParams,m,delta,rng,s
     Function computing the pac bound for a generic dataset, for a single spatial coordinate
     Outputs the two terms separately
     '''
-    #jax.debug.print("start of error_unbounded {}",A.shape)
     #lambda function, computes the value for the empirical risk
     MC_train_e = r_empirical_risk_unbounded(A_c_e,b_c_e,arch, mask)
     #m= Z.Ncones
@@ -157,7 +180,6 @@ def error_unbounded(it_params,Z,A_c_e,b_c_e,dim,arch,mask,piParams,m,delta,rng,s
     #serial parallelization for each shard
       e = MC_train_e(el)
       error += jnp.sum(e)
-      #jax.debug.print("realiyation shape: {}", el.shape)
       pE,psup = pac_unbounded(A_c_e,el,piParams,it_params,dim,arch,mask,theta,VarZtrx,m,delta) # A instead of A_c_e, but rethink in ways I shard
       pac_E += jnp.sum(pE)
       pac_sup += jnp.sum(psup)
@@ -342,7 +364,6 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         '''
         Core function for the optimization: performs the gradient step and updates the parameters for each spatial coordinate at the current batch iteration
         '''
-        #jax.debug.print("params {}", it_params)
         #spatial training set slicing 
         window_mapped=jax.vmap(d_slicing)(it_coord)
         window_mapped=jnp.reshape(window_mapped,(len(it_coord),Bsize))
@@ -353,7 +374,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
 
         theta = Z.thetatilder
         VarZtrx = Z.truncated_covs_between_all_members_of_cone()[1][0][0]
-        scorf=tf_unbounded(Acones,bcones,it_params,dim,([inp,*arch]),mask,theta,VarZtrx,m,delta)
+        scorf=tf_unbounded_sup(Acones,bcones,([inp,*arch]),mask,theta,VarZtrx,m,delta)
 
         #computes the second term of the obj function (containing the divergence terms)
         kl_mapped = lambda beta: target_func_unbounded_KL(piParams,beta,dim,m) # TODO NNsize scheint nicht benötigt, idk ob dim == NNsize
@@ -364,7 +385,6 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         #computes the value and the gradient (using jax.grad) of the second term of the objective function
         val_grad=kl_mapped(it_params)
         grad= jax.grad(kl_mapped)(it_params)
-        #jax.debug.print("grad {}",grad)
       
         #updates the parameter via Adam update rule      
         updates = jest+grad
@@ -489,8 +509,6 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
       #stores in the current epoch group all the measures for future diagnostic 
         hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked]
         names=[ 'a','lambda', 'm', 'bound_train_E','bound_train_sup', 'train_errors','test_errors','bound_test_E','bound_test_sup','val_jest','val_grad','cones_test']
-        jax.debug.print('len hdata {}',len(hdata))
-        jax.debug.print('len names {}',len(names))
         makeh5(file_epoch,hdata,names)
 
     file_last=file_m.create_dataset('last params',data=params_stacked)

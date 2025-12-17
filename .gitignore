@@ -178,7 +178,7 @@ cython_debug/
 .pypirc
 
 
-playground.py
+playground*.py
 #tests.py
 Results
 datasets_2D
