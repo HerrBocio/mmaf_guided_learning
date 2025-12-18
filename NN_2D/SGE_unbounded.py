@@ -16,9 +16,9 @@ from tqdm import trange,tqdm
 #from optax.monte_carlo import stochastic_gradient_estimators as sge
 import os
 
-#os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'#,2,3'
-#os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'#,2,3'
+os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
   
 # def target_func_unbounded(piParams,rhoParams,NNsize,m):
 #    return KLdiag(piParams,rhoParams,NNsize)/jnp.sqrt(m) + target_func_unbouded_sampling_from_rho() # ist KLdiag richtig oder from_logscale???
@@ -68,7 +68,7 @@ def target_func_unbouded_sampling_from_rho_sup(A,b,realization,arch,mask,theta, 
   tf += rho_hXsq/(2*jnp.sqrt(m))
   #suprho = rho_Liph # this is not sup[rho[Lip(h)]], just an estimation with one draw
   tf += theta*apc/delta * rho_Liph
-  jax.debug.print("tf {}", tf)
+  #jax.debug.print("tf {}", tf)
   return tf
 
 def tf_unbounded_E(A,b,arch,mask,theta, VarZtrx,m,delta):
@@ -110,7 +110,7 @@ def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,
     constants_E = constants_sup +jnp.sqrt(m)*(apc*theta/delta)**2
     bound_E = tf_E + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants_E
     bound_sup = tf_sup + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants_sup
-    return [bound_E,bound_sup]
+    return [bound_E,bound_sup,rho_Liph]
 
 def l_empirical_risk_unbounded(A,b,arch,mask):
     #lambda function for the computation of the empirical risk (to compute the gradient over)
@@ -174,22 +174,26 @@ def error_unbounded(it_params,Z,A_c_e,b_c_e,dim,arch,mask,piParams,m,delta,rng,s
     error=0
     pac_E = 0 
     pac_sup = 0 
+    Liph_mean = 0
     theta = Z.thetatilder
     VarZtrx = Z.truncated_covs_between_all_members_of_cone()[1][0][0]
     for el in realizations:
     #serial parallelization for each shard
       e = MC_train_e(el)
       error += jnp.sum(e)
-      pE,psup = pac_unbounded(A_c_e,el,piParams,it_params,dim,arch,mask,theta,VarZtrx,m,delta) # A instead of A_c_e, but rethink in ways I shard
+      pE,psup,rho_Liph = pac_unbounded(A_c_e,el,piParams,it_params,dim,arch,mask,theta,VarZtrx,m,delta) # A instead of A_c_e, but rethink in ways I shard
       pac_E += jnp.sum(pE)
       pac_sup += jnp.sum(psup)
+      Liph_mean += rho_Liph
     error=error/N
     pac_E=pac_E/N
     pac_sup=pac_sup/N
+    Liph_mean = Liph_mean/N
     jax.debug.print("error {}", error)
     jax.debug.print("pac_E {}", pac_E)
     jax.debug.print("pac_sup {}", pac_sup)
-    return [error,pac_E,pac_sup]
+    jax.debug.print("rho Liph {}", Liph_mean)
+    return [error,pac_E,pac_sup, Liph_mean]
 
 
 def coordit_pretraining(Z,preT_coord,preT_d_slicing,a,c,p,arch,mask,dim,eps,init_scale=0.0016,pretraining_learning_rate=0.01): # not done for unbounded case yet
@@ -317,7 +321,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
     else:
       #if no pretraining is performed, the posterior mean is set as having variance equal to 1/4
       rhoParams=[jnp.zeros(dim),jnp.ones(dim)*jnp.log(.25)] #jnp.ones(dim)/2
-      sharded_params=jax.vmap(lambda dummy: jnp.vstack(rhoParams))(range(shard_size))
+      sharded_params=jax.vmap(lambda dummy: jnp.vstack(rhoParams))(jnp.arange(shard_size))
       params= [sharded_params for el in range((x_size-2*p*c)//shard_size)]   
       piParams=[jnp.zeros(dim),piScale]
       
@@ -336,10 +340,10 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
     Acones_dummy = jnp.zeros((Ncones,inp))
     bcones_dummy = jnp.zeros(Ncones)
     
-    sharded_Acones = jax.vmap(lambda dummy: jnp.vstack(Acones_dummy))(range(shard_size))
+    sharded_Acones = jax.vmap(lambda dummy: jnp.vstack(Acones_dummy))(jnp.arange(shard_size))
     Acones_s = [sharded_Acones for el in range((x_size-2*p*c)//shard_size)] 
 
-    sharded_bcones = jax.vmap(lambda dummy: jnp.vstack(bcones_dummy))(range(shard_size))
+    sharded_bcones = jax.vmap(lambda dummy: jnp.vstack(bcones_dummy))(jnp.arange(shard_size))
     bcones_s = [sharded_bcones for el in range((x_size-2*p*c)//shard_size)] 
 
     
@@ -430,11 +434,11 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
             #lambda function, parallelizes the optimization routine to each coordinates shard
             opt_mapping = jax.vmap(lambda og,pmap,opt,rngM: coordit_unbounded(og,pmap,opt,batch,Z.Ncones*Z.a,Z.Ncones,dim,inp,delta,rngM),in_axes=(0,0,0,0))
 
-            output = jnp.transpose(jax.vmap(lambda dummy: jnp.array([]))(range(Ndraws)))
+            output = jnp.transpose(jax.vmap(lambda dummy: jnp.array([]))(jnp.arange(Ndraws)))
             
             val_jest_stacked= jnp.array([])
             val_grad_stacked= jnp.array([])
-            params_stacked =jnp.transpose(jax.vmap(lambda dummy:jnp.array([[],[]]))(range(dim)))
+            params_stacked =jnp.transpose(jax.vmap(lambda dummy:jnp.array([[],[]]))(jnp.arange(dim)))
 
             for ls_i in range((x_size-2*p*c)//shard_size):
 
@@ -480,7 +484,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
 
         for ls_i in range((x_size-2*p*c)//shard_size): 
           #stores the pac bound values accordingly
-              mile_train_e,pac_train_E,pac_train_sup = e_mapped_train(params[ls_i],Acones_s[ls_i],bcones_s[ls_i])
+              mile_train_e,pac_train_E,pac_train_sup,Liph_train = e_mapped_train(params[ls_i],Acones_s[ls_i],bcones_s[ls_i])
               milestone_train_error=jnp.hstack([milestone_train_error,mile_train_e])
               bound_train_E = jnp.hstack([bound_train_E,pac_train_E])
               bound_train_sup = jnp.hstack([bound_train_sup,pac_train_sup])
@@ -489,7 +493,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
               A_c_e,b_c_e=jax.vmap(finalStep)(list_shards[ls_i],params[ls_i]) #save b_c_e_stacked
               b_c_e_stacked=jnp.vstack([b_c_e_stacked,b_c_e])
           #computation of the out-of-sample pac bound
-              test_e,pac_test_E, pac_test_sup= e_mapped_test(params[ls_i],A_c_e,b_c_e)
+              test_e,pac_test_E, pac_test_sup, Liph_test= e_mapped_test(params[ls_i],A_c_e,b_c_e)
               test_error=jnp.hstack([test_error,test_e])   
               bound_test_E = jnp.hstack([bound_test_E,pac_test_E])  
               bound_test_sup = jnp.hstack([bound_test_sup,pac_test_sup])  
@@ -507,8 +511,8 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
           best_params_sup=params_stacked
 
       #stores in the current epoch group all the measures for future diagnostic 
-        hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked]
-        names=[ 'a','lambda', 'm', 'bound_train_E','bound_train_sup', 'train_errors','test_errors','bound_test_E','bound_test_sup','val_jest','val_grad','cones_test']
+        hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked,Liph_train,Liph_test]
+        names=[ 'a','lambda', 'm', 'bound_train_E','bound_train_sup', 'train_errors','test_errors','bound_test_E','bound_test_sup','val_jest','val_grad','cones_test',"Lip_train","Lip_test"]
         makeh5(file_epoch,hdata,names)
 
     file_last=file_m.create_dataset('last params',data=params_stacked)

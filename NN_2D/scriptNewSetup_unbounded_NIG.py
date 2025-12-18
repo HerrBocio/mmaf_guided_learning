@@ -26,10 +26,10 @@ path='/LOCAL/jasst/results/nopreT/'
 # This script launches the optimization routine for synthetic data GauA4 and NIGA4
 # The hyperparameters A,c,lambda_ are already estimated
 
-
+datasetsM = ['NIGdiamonddata1A4mln']
 ids=[1]
-A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
-c_estimatedM=[1,1]
+A_estimatedM=[3.868912]#,]#,[3.840956]#
+c_estimatedM=[1]
 
 m_test= 101
 
@@ -47,12 +47,10 @@ a_val=[]
 #lambda_ estimation
 for i in range(len(datasetsM)):
   l=A_estimatedM[i] * np.minimum(2.0, c_estimatedM[i]) / (2*c_estimatedM[i])
-  print("lambda: ",l)
+  print(l)
   lambda_.append(l)
-  a= np.ceil(jnp.log(m_batches)/(2*l)+p)
-  #a_vgl= np.ceil(- np.log(0.025/(2*eps*m_batches))/l + p )
-  #jax.debug.print("a meins {}", a)
-  #jax.debug.print("a vgl {}", a_vgl)
+
+  a= np.ceil(- np.log(0.025/(2*eps*m_batches))/l + p )
   a_val.append(int( a) )
 
 print('a val',a_val,lambda_)
@@ -64,7 +62,7 @@ shard_size= [8] #[8,2,1]#,2,8]#,1]#,33]#99,?
 
 #sets the variance of the reference distribution 
 piScalingLabel=list(range(10,230,20))
-piRescaling=[1./10, 1./30, 1./50, 1./70, 1./90,1./110, 1./130, 1./150, 1./170, 1./190, 1./210] #   
+piRescaling=[1./70, 1./90,1./110, 1./130, 1./150, 1./170, 1./190, 1./210] #   
 piRescaling= np.log(piRescaling)
 print(piRescaling)
 
@@ -72,7 +70,7 @@ pretraining=[False]
 
 rescaling=False
 
-day='151225'
+day='1812'
 filename=day+'_full_relu_std'
 
 for l_,boolean in enumerate(pretraining): 
@@ -99,7 +97,7 @@ for l_,boolean in enumerate(pretraining):
         print('prior=',pir)
         pathPrior=path+'prior'+str(piScalingLabel[k])+'var/'
         create_folder(pathPrior)
-        file_ = h5py.File(pathPrior+day+filename+pretraining_labels +str(arch[0])+'_' +str(datasetsM[current_id]) +'_a' +str(a_val) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5','w')
+        file_ = h5py.File(pathPrior+filename+pretraining_labels +str(dimComp([inp,*arch]))+'_' +str(datasetsM[current_id]) +'_a' +str(a_val) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5','w')
         file_m=file_.create_group('m'+str(m_batches))
         print('m=',m_batches)
         Z = STOU(A_estimatedM[current_id],c_estimatedM[current_id],arch,N-m_test*a_val[current_id],m_test-1,m_batches,a_val[current_id],p,h_t[0])

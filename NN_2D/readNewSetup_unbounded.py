@@ -44,7 +44,7 @@ file_name= day+'_full_relu_std'+preTlabel#full_tanh_new_setup,full_relu_new_setu
 figure_name="depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
 
 
-a_val=[8,8]
+a_val=[3,3]
 #[p]
 
 delta=0.025
@@ -94,15 +94,15 @@ for current_id in reversed(range(len(datasetsM))):
     for i,arch in enumerate((archs)):#reversed 
             if not os.path.exists(pathT):
                       os.makedirs(pathT)
-            fVal=open(pathT+'Table_validation_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
+            fVal=open(pathT+'Table_validation_'+figure_name+'_'+datasetsM[current_id]+str(archs[i][0])+'_'+'.txt','w')
             fVal.write('Train Err. & CRPS & RMSE\n\n')
 
-            fTrain=open(pathT+'Table_training_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
+            fTrain=open(pathT+'Table_training_'+figure_name+'_'+datasetsM[current_id]+str(archs[i][0])+'_'+'.txt','w')
             fTrain.write('Training E. & Lin. PAC & True PAC\n\n')
                             
             
             
-            fTest=open(pathT+'Table_TestTrain_'+figure_name+'_'+datasetsM[current_id]+str(dimComp([inp,*archs[i]]))+'_'+'.txt','w')
+            fTest=open(pathT+'Table_TestTrain_'+figure_name+'_'+datasetsM[current_id]+str(archs[i][0])+'_'+'.txt','w')
             fTest.write('KL train & Chi2 & pac lin & true pac  &  CRPS & RMSE & min it  \n\n') #Test Err. &
         
 
@@ -135,16 +135,16 @@ for current_id in reversed(range(len(datasetsM))):
                   print('pir', pir,'\n',file=fTest)
               
                   print(pir,arch,datasetsM[current_id])
-                  pathPrior = os.path.join(
-                      pathF,
-                      datasetsM[current_id],
-                      'prior' + str(pir),
-                      day,
-                      str(dimComp([inp, *arch]))
-                  )
-                  if not os.path.exists(pathPrior):
-                      os.makedirs(pathPrior)
-                      print("figures folder created")
+                  # pathPrior = os.path.join(
+                  #     pathF,
+                  #     datasetsM[current_id],
+                  #     'prior' + str(pir),
+                  #     day,
+                  #     str(dimComp([inp, *arch]))
+                  # )
+                  # if not os.path.exists(pathPrior):
+                  #     os.makedirs(pathPrior)
+                  #     print("figures folder created")
 
 
                   empirical_obj=np.array([])
@@ -358,7 +358,7 @@ for current_id in reversed(range(len(datasetsM))):
                   plt.ylabel("obj function value")
                   plt.legend(['av. obj function'])
                   
-                  savename = (pathPrior+figure_name+'_fullEpochslog_E_'+str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png').replace("/","-")
+                  savename = pathF+datasetsname_short[current_id]+ 'prior' + str(pir)+folder_day+str(dimComp([inp, *arch]))+figure_name+'_fullEpochslog_E_'+str(dimComp([inp,*arch])) +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png'.replace("/","-")
                   plt.savefig(savename)
                   plt.close()
 
@@ -386,7 +386,7 @@ for current_id in reversed(range(len(datasetsM))):
                   plt.ylabel("obj function value")
                   plt.legend(['av. obj function (bound with E)'])
                   
-                  savename = pathPrior+figure_name+'_fullEpochslog_sup_'+str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png'.replace("/","-")
+                  savename = pathF+datasetsname_short[current_id]+ 'prior' + str(pir)+folder_day+str(dimComp([inp, *arch]))+figure_name+'_fullEpochslog_sup_'+str(dimComp([inp,*arch])) +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png'.replace("/","-")
                   plt.savefig(savename)
                   plt.close()
 

@@ -353,7 +353,7 @@ for current_id in reversed(range(len(datasetsM))):
                   plt.ylabel("obj function value")
                   plt.legend(['av. obj function'])
                   
-                  savename = (pathPrior+figure_name+'_fullEpochslog_E_'+str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png').replace("/","-")
+                  savename = (pathF+figure_name+'_fullEpochslog_E_'+str(dimComp([inp,*arch])) +'_' +str(datasetsM[current_id]) +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png').replace("/","-")
                   plt.savefig(savename)
                   plt.close()
 
