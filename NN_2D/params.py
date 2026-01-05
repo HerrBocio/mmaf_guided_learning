@@ -10,7 +10,7 @@ p=1
 c=1
 Ndraws=1000          
 
-folder_day = "1812"
+folder_day = "0501"
 
 pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/tables/" #'results/s_data/tables/'
 pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'results/s_data/figures/'
@@ -18,4 +18,5 @@ pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'re
 
 #path='/LOCAL/prol/s_data/'#nobias/'
 path="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/nopreT/"
-day = folder_day#day='1512'
+day = folder_day
+day='1512'
