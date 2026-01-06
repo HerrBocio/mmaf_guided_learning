@@ -5,6 +5,7 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
 from STOU import STOU
+from params2 import *
 from SGE_unbounded import Optimization
 from utils import *
 import numpy as np
@@ -13,11 +14,11 @@ import time
 from datetime import datetime
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
-#data_path="../datasets_2D/" #/LOCAL/prol/
-data_path="datasets_2D/" #/LOCAL/prol/
+data_path="../datasets_2D/" #/LOCAL/prol/
+#data_path="datasets_2D/" #/LOCAL/prol/
 
-os.makedirs('/LOCAL/jasst/results/nopreT', exist_ok=True)
-path='/LOCAL/jasst/results/nopreT'
+os.makedirs('/LOCAL/jasst/results', exist_ok=True)
+path='/LOCAL/jasst/results/'
 #path='/afs/tu-chemnitz.de/project/calibration/debug/'
 
 
@@ -26,41 +27,41 @@ path='/LOCAL/jasst/results/nopreT'
 # The hyperparameters A,c,lambda_ are already estimated
 
 
-datasetsM= ['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']#
 ids=[1]
 A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
 c_estimatedM=[1,1]
-m_batches=1000 
+
 m_test= 101
 
 Ndraws=30
 
 Ncoords=10 #max201
 lr=0.005
-h_t=[1]
+
 eps=3.
 p=1
 
 lambda_=[]
-a_val=[]
+a_val=[8,8]
 
+"""
 #lambda_ estimation
 for i in range(len(datasetsM)):
   l=A_estimatedM[i] * np.minimum(2.0, c_estimatedM[i]) / (2*c_estimatedM[i])
-  print(l)
+  print("lambda: ",l)
   lambda_.append(l)
-
-  a= np.ceil(- np.log(0.025/(2*eps*m_batches))/l + p )
+  a= np.ceil(jnp.log(m_batches)/(2*l)+p)
+  #a_vgl= np.ceil(- np.log(0.025/(2*eps*m_batches))/l + p )
+  #jax.debug.print("a meins {}", a)
+  #jax.debug.print("a vgl {}", a_vgl)
   a_val.append(int( a) )
 
 print('a val',a_val,lambda_)
+"""
 
 center_pixel=5
 
-delta=.025
-inp=3
 
-archs=[[10,10,1]]#[[30,30,1],[100,100,1],[300,300,1]]  ##,,[300,300,1],[100,100,1],
 shard_size= [8] #[8,2,1]#,2,8]#,1]#,33]#99,?
 
 #sets the variance of the reference distribution 
@@ -73,8 +74,7 @@ pretraining=[False]
 
 rescaling=False
 
-day='undefined'
-filename=day+'_full_relu_std'
+filename=''
 
 for l_,boolean in enumerate(pretraining): 
   #loops over pretraining choice
@@ -82,7 +82,7 @@ for l_,boolean in enumerate(pretraining):
       Epochs=150
       pretraining_labels='_preT'
   else:
-      Epochs=60
+      Epochs=epochs_nopreT #60
       pretraining_labels=''
   for i,arch in enumerate(archs): # reversed
     #loops over architectures
@@ -98,11 +98,13 @@ for l_,boolean in enumerate(pretraining):
       for k,pir in enumerate(piRescaling):
         #loops over reference distributions
         print('prior=',pir)
+        jax.debug.print("STRING ARCH {}", str(arch))
         pathPrior=path+'prior'+str(piScalingLabel[k])+'var/'
         create_folder(pathPrior)
-        file_ = h5py.File(pathPrior+day+filename+pretraining_labels +str(dimComp([inp,*arch]))+'_' +str(datasetsM[current_id]) +'_a' +str(a_val) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5','w')
+        jax.debug.print(pathPrior+day+filename+pretraining_labels +str(arch)+'_' +str(datasetsM[current_id])[:3] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5')
+        file_ = h5py.File(pathPrior+day+filename+pretraining_labels +str(arch)+'_' +str(datasetsM[current_id])[:3] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5','w')
         file_m=file_.create_group('m'+str(m_batches))
         print('m=',m_batches)
         Z = STOU(A_estimatedM[current_id],c_estimatedM[current_id],arch,N-m_test*a_val[current_id],m_test-1,m_batches,a_val[current_id],p,h_t[0])
-        Optimization(file_m,Z,x_size,boolean,rescaling,eps,delta,data,inp,p,c,arch,dimComp([inp,*arch]),Ndraws,m_batches,m_test,Ncoords,shard_size[i], lr, epochs=Epochs, piScaling=pir)
+        Optimization(file_m,Z,x_size,boolean,rescaling,eps,delta,data,inp,p,c,arch,dimComp([inp,*arch]),Ndraws,m_batches,m_test,Ncoords,shard_size[0], lr, epochs=Epochs, piScaling=pir)
         file_.close()
