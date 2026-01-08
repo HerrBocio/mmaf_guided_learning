@@ -467,6 +467,8 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         bound_train_sup = jnp.array([])
         bound_test_E = jnp.array([])
         bound_test_sup = jnp.array([])
+        Liphs_train =jnp.array([])
+        Liphs_test =jnp.array([])
       
         milestone_seeds.append(jax.random.key(epoch))
 
@@ -488,6 +490,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
               milestone_train_error=jnp.hstack([milestone_train_error,mile_train_e])
               bound_train_E = jnp.hstack([bound_train_E,pac_train_E])
               bound_train_sup = jnp.hstack([bound_train_sup,pac_train_sup])
+              Liphs_train = jnp.hstack([Liphs_train, Liph_train])
 
           #extraction of the test set cones
               A_c_e,b_c_e=jax.vmap(finalStep)(list_shards[ls_i],params[ls_i]) #save b_c_e_stacked
@@ -497,30 +500,31 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
               test_error=jnp.hstack([test_error,test_e])   
               bound_test_E = jnp.hstack([bound_test_E,pac_test_E])  
               bound_test_sup = jnp.hstack([bound_test_sup,pac_test_sup])  
+              Liphs_test = jnp.hstack([Liphs_test, Liph_test])
 
         if jnp.mean(bound_train_E+milestone_train_error,axis=0)<min_error_E: 
         #updates the best parameters                
           min_it_E=epoch
-          min_error_E=jnp.mean(bound_train_E+milestone_train_error,axis=0)
+          min_error_E=jnp.mean(bound_train_E+milestone_train_error,axis=0) #!!!!!!!!!!! TODO
           best_params_E=params_stacked
 
         if jnp.mean(bound_train_sup+milestone_train_error,axis=0)<min_error_sup: 
         #updates the best parameters                
           min_it_sup=epoch
-          min_error_sup=jnp.mean(bound_train_E+milestone_train_error,axis=0)
+          min_error_sup=jnp.mean(bound_train_sup+milestone_train_error,axis=0)
           best_params_sup=params_stacked
 
       #stores in the current epoch group all the measures for future diagnostic 
-        hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked,Liph_train,Liph_test]
-        names=[ 'a','lambda', 'm', 'bound_train_E','bound_train_sup', 'train_errors','test_errors','bound_test_E','bound_test_sup','val_jest','val_grad','cones_test',"Lip_train","Lip_test"]
+        hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked,Liphs_train,Liphs_test,params_stacked]
+        names=[ 'a','lambda', 'm', 'bound_train_E','bound_train_sup', 'train_errors','test_errors','bound_test_E','bound_test_sup','val_jest','val_grad','cones_test',"Lips_train","Lips_test","params_stacked"]
         makeh5(file_epoch,hdata,names)
 
     file_last=file_m.create_dataset('last params',data=params_stacked)
 
     #creates the h5 group for the best parameters
     file_best=file_m.create_group('min')
-    file_best.create_dataset('min_error_E',data=min_error_E)
-    file_best.create_dataset('min_error_sup',data=min_error_sup)
+    file_best.create_dataset('min_error_E',data=min_error_E) # already contains empirical error
+    file_best.create_dataset('min_error_sup',data=min_error_sup)# already contains empirical error
     file_best.create_dataset('min iteration_E',data=min_it_E)
     file_best.create_dataset('min iteration_sup',data=min_it_sup)
     file_best.create_dataset('best params_E',data=best_params_E)

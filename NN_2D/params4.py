@@ -1,4 +1,4 @@
-epochs_nopreT = 60
+epochs_nopreT = 150
 delta=.025
 inp=3
 h_t=[1]

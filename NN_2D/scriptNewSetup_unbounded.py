@@ -98,13 +98,13 @@ for l_,boolean in enumerate(pretraining):
       for k,pir in enumerate(piRescaling):
         #loops over reference distributions
         print('prior=',pir)
-        jax.debug.print("STRING ARCH {}", str(arch))
+        #jax.debug.print("STRING ARCH {}", str(arch))
         pathPrior=path+'prior'+str(piScalingLabel[k])+'var/'
         create_folder(pathPrior)
-        jax.debug.print(pathPrior+day+filename+pretraining_labels +str(arch)+'_' +str(datasetsM[current_id])[:3] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5')
+        #jax.debug.print(pathPrior+day+filename+pretraining_labels +str(arch)+'_' +str(datasetsM[current_id])[:3] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5')
         file_ = h5py.File(pathPrior+day+filename+pretraining_labels +str(arch)+'_' +str(datasetsM[current_id])[:3] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5','w')
         file_m=file_.create_group('m'+str(m_batches))
-        print('m=',m_batches)
+        #print('m=',m_batches)
         Z = STOU(A_estimatedM[current_id],c_estimatedM[current_id],arch,N-m_test*a_val[current_id],m_test-1,m_batches,a_val[current_id],p,h_t[0])
         Optimization(file_m,Z,x_size,boolean,rescaling,eps,delta,data,inp,p,c,arch,dimComp([inp,*arch]),Ndraws,m_batches,m_test,Ncoords,shard_size[0], lr, epochs=Epochs, piScaling=pir)
         file_.close()
