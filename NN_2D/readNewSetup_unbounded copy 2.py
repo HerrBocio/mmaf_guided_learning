@@ -86,7 +86,7 @@ if not os.path.exists(pathF):
     
 for i,arch in enumerate((archs)):#reversed      
       fJ=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i])+'.txt','w')
-      fJ.write('Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & CRPS & RMSE & rho[Lip(h)] at best Iter train. \n\n')
+      fJ.write('Pir & best Train Err. & corresp. Test Err. & CRPS & RMSE & best It.(Train) & rho[Lip(h)] at this it. \n\n')
 
       mask=mask_gen(inp,arch)
       d=dimComp([inp,*archs[i]])
@@ -139,11 +139,7 @@ for i,arch in enumerate((archs)):#reversed
                     train_errors.append( np.mean(np.array(e_g.get('train_errors'))))
                     #min_bound_train.append(np.mean( np.array(e_g.get('min bound'))))
                     
-                    params=np.array(e_g.get('params_stacked'))
-                    kl_mapped=lambda beta: KLdiag_from_log_scale(piParams,beta,d)#(piParams,rhoParams,NNsize):
-
-                    KL = jax.vmap(kl_mapped)(params)
-                    KL = jnp.mean(KL)
+                    #params=np.array(e_g.get('params'))
                     #arams=jnp.
                     #print(params[0].shape)
                     #print(np.array(e_g.get('best_paramsmin error')))
@@ -155,50 +151,38 @@ for i,arch in enumerate((archs)):#reversed
                     Liph_train.append(np.mean(np.array(e_g.get('Lips_train'))))
                     Liph_test.append(np.mean(np.array(e_g.get('Lips_test'))))
 
-                    print(e_g.get("params_stacked"))
+                    print(Epoch,'&',bound_test_sup[-1]+train_errors[-1],'&',bound_test_sup[-1]+test_errors[-1],'&',0,'&',Liph_train[-1],file=f_epochs)
 
-                    print(Epoch,'&',bound_train_sup[-1]+train_errors[-1],'&',bound_test_sup[-1]+test_errors[-1],'&',KL,'&',Liph_train[-1],file=f_epochs)
 
-              for elem in bound_train_sup:
-                   print("bound train sup ",elem)
-
-              for ele in bound_test_sup:
-                   print("bound test sup", ele)
-              
-              whole_bound_train = np.array(bound_train_sup)+np.array(train_errors)
-              best_whole_bound_train = np.min(whole_bound_train)
-              best_iter_train = np.argmin(whole_bound_train)+1
-
-              whole_bound_test = np.array(bound_test_sup)+np.array(test_errors)
-              best_whole_bound_test = np.min(whole_bound_test)
-              best_iter_test = np.argmin(whole_bound_test)+1
-
-              print("best_iter_train", best_iter_train)
-              
-              for elem in whole_bound_train:
-                   print("whole bound train sup ",elem)
-
-              for ele in whole_bound_test:
-                   print("whole bound test sup", ele)
-
-              print("!!!!!!!!!!!!!!!!!!!!!",np.min(whole_bound_train))
-              print("????????????", np.min(whole_bound_test))
-
+              m_g=hf.get('m'+str(m_batches[m]))                    
+              print(hf.keys())
+              print(m_g.keys())
+              last_params=np.array(m_g.get('last params'))
+              b_g=m_g.get('min')
+              best_params_sup=jnp.array(b_g.get('best params_sup'))
+              min_error_train_sup=np.array(b_g.get('min_error_sup'))
+              min_it_sup=np.array(b_g.get('min iteration_sup'))
+              data_test=np.array(m_g.get('data_test'))
+              #print(data_test.shape)              
+              e_g=m_g.get('epoch'+str(min_it_sup))
+              corr_bound_test_sup=np.array(e_g.get('bound_test_sup'))
+              emp_error_test_min_it=np.array(e_g.get('test_errors'))
+              pac_test_min_it=jnp.mean(corr_bound_test_sup) # mean over sharded x*'s
+              b_test=np.array(e_g.get('cones_test'))
+              Lip_train = np.array(e_g.get('Lip_train'))
+              #Lip_test = np.array(e_g.get('Lip_test'))
+              print("min_error_train_sup", min_error_train_sup)
               rng=jax.random.key(Nepochs)
               
-              e_g=m_g.get('epoch'+str(best_iter_train))
-              best_params_sup = e_g.get('params_stacked')
+              e_g=m_g.get('epoch'+str(min_it_sup))
+            
               emp_risk =np.array( e_g.get('val_jest'))
               emp_risk=np.mean(emp_risk)
 
-              print("params",best_params_sup)
-              print("emp_risk", emp_risk)
-
-              Liph_train_best_iter = np.mean(e_g.get('Lips_train'),axis=0)
-              print("Lip",Liph_train_best_iter)
-
               safe_mean=lambda beta: beta/best_params_sup.shape[0]
 
+              whole_test_pac_min_it_sup =jnp.mean( corr_bound_test_sup+emp_error_test_min_it)
+                
               m_e_f_validation=np.zeros((0,Ndraws,1))
               #print(data_validation.shape)
               for n1 in range(p*c,data_validation.shape[0]-p*c):
@@ -217,7 +201,7 @@ for i,arch in enumerate((archs)):#reversed
                 rmse_coord.append(rmse_univ(b_validation[n1],m_e_f_validation[n1,:,0]))
                 rmse.append(rmse_coord)
                 
-              print(pir, '&', np.round(best_whole_bound_train,decimals=4),'&',best_iter_train,'&', np.round(best_whole_bound_test,decimals=4), '&', best_iter_test,'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',Liph_train_best_iter,file=fJ) 
+              print(pir, '&', np.round(min_error_train_sup,decimals=4),'&', np.round(whole_test_pac_min_it_sup,decimals=4),'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',min_it_sup,'&',np.mean(Liph_train),file=fJ) 
 
             #log entire epochs plots - sup
             plt.figure(figsize=(12, 10))                  

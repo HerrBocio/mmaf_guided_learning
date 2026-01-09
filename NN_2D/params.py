@@ -1,3 +1,4 @@
+epochs_nopreT = 500
 epochs_nopreT = 3
 delta=.025
 inp=3
@@ -11,7 +12,7 @@ p=1
 c=1
 Ndraws=1000          
 
-folder_day = "0801"
+folder_day = "0901test_"
 
 pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/tables/" #'results/s_data/tables/'
 pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'results/s_data/figures/'
@@ -20,4 +21,4 @@ pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'re
 #path='/LOCAL/prol/s_data/'#nobias/'
 path="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/"
 day = folder_day
-day='0801'
+day='0901'
