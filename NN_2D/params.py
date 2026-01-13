@@ -12,6 +12,7 @@ p=1
 c=1
 Ndraws=1000          
 
+folder_day = "1301_"
 folder_day = "0901test_"
 
 pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/tables/" #'results/s_data/tables/'

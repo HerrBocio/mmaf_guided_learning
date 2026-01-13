@@ -107,8 +107,9 @@ def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,
     tf_E += 1/delta**2*(1/jnp.sqrt(m)*rho_Liph**2 + 2*apc*theta*rho_Liph)
     constants_sup = theta*(1+1/delta)+jnp.log(1/delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))
     constants_E = constants_sup +jnp.sqrt(m)*(apc*theta/delta)**2
-    bound_E = tf_E + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants_E
-    bound_sup = tf_sup + target_func_unbounded_KL(piParams,rhoParams,dim,m) + constants_sup
+    KL = target_func_unbounded_KL(piParams,rhoParams,dim,m)
+    bound_E = tf_E + KL + constants_E
+    bound_sup = tf_sup + KL + constants_sup
     return [bound_E,bound_sup,rho_Liph]
 
 def l_empirical_risk_unbounded(A,b,arch,mask):
@@ -464,6 +465,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
         bound_test_sup = jnp.array([])
         Liphs_train =jnp.array([])
         Liphs_test =jnp.array([])
+        KLs =jnp.array([])
       
         milestone_seeds.append(jax.random.key(epoch))
 
@@ -486,6 +488,8 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
               bound_train_E = jnp.hstack([bound_train_E,pac_train_E])
               bound_train_sup = jnp.hstack([bound_train_sup,pac_train_sup])
               Liphs_train = jnp.hstack([Liphs_train, Liph_train])
+              KL = KLdiag_from_log_scale(piParams,params[ls_i],0)
+              KLs = jnp.hstack([KLs, KL])
 
           #extraction of the test set cones
               A_c_e,b_c_e=jax.vmap(finalStep)(list_shards[ls_i],params[ls_i]) #save b_c_e_stacked
@@ -512,8 +516,8 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
           #jax.debug.print("params_stacked {}", params_stacked)
 
       #stores in the current epoch group all the measures for future diagnostic 
-        hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked,Liphs_train,Liphs_test,params_stacked]
-        names=[ 'a','lambda', 'm', 'bound_train_E','bound_train_sup', 'train_errors','test_errors','bound_test_E','bound_test_sup','val_jest','val_grad','cones_test',"Lips_train","Lips_test","params_stacked"]
+        hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked,Liphs_train,Liphs_test,KLs]
+        names=[ 'a','lambda', 'm', 'bound_train_E','bound_train_sup', 'train_errors','test_errors','bound_test_E','bound_test_sup','val_jest','val_grad','cones_test',"Lips_train","Lips_test","KL"]
         makeh5(file_epoch,hdata,names)
 
     file_last=file_m.create_dataset('last params',data=params_stacked)
