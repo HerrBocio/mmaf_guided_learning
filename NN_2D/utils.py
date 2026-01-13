@@ -159,6 +159,7 @@ def KLdiag_from_log_scale(piParams,rhoParams,NNsize):
     kl= kl + jnp.dot(diff,jax.vmap(prod)(jnp.exp(-piParams1),diff)) #matmul
     kl=kl + jnp.sum(piParams1) 
     kl=kl - jnp.sum(rhoParams1) 
+    jax.debug.print("kl {}", kl)
     return kl
     
 

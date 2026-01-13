@@ -187,7 +187,7 @@ def error_unbounded(it_params,Z,A_c_e,b_c_e,dim,arch,mask,piParams,m,delta,rng,s
     pac_E=pac_E/N
     pac_sup=pac_sup/N
     Liph_mean = Liph_mean/N
-    jax.debug.print("pac_sup {}", pac_sup)
+    #jax.debug.print("pac_sup {}", pac_sup)
     return [error,pac_E,pac_sup, Liph_mean]
 
 
@@ -508,8 +508,8 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
           min_it_sup=epoch
           min_error_sup=jnp.mean(bound_train_sup+milestone_train_error,axis=0)
           best_params_sup=params_stacked
-          jax.debug.print("min_error_sup {}", min_error_sup)
-          jax.debug.print("params_stacked {}", params_stacked)
+          #jax.debug.print("min_error_sup {}", min_error_sup)
+          #jax.debug.print("params_stacked {}", params_stacked)
 
       #stores in the current epoch group all the measures for future diagnostic 
         hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked,Liphs_train,Liphs_test,params_stacked]
@@ -527,7 +527,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
     file_best.create_dataset('best params_E',data=best_params_E)
     file_best.create_dataset('best params_sup',data=best_params_sup)
 
-    jax.debug.print("min_error_sup final {}", min_error_sup)
-    jax.debug.print("params_stacked final {}",best_params_sup)
+    #jax.debug.print("min_error_sup final {}", min_error_sup)
+    #jax.debug.print("params_stacked final {}",best_params_sup)
 
         
