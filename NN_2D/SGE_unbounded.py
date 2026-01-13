@@ -20,8 +20,6 @@ os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'#,2,3'
 os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
   
-# def target_func_unbounded(piParams,rhoParams,NNsize,m):
-#    return KLdiag(piParams,rhoParams,NNsize)/jnp.sqrt(m) + target_func_unbouded_sampling_from_rho() # ist KLdiag richtig oder from_logscale???
 
 def target_func_unbounded_KL(piParams,rhoParams,NNsize,m):
    return KLdiag_from_log_scale(piParams,rhoParams,NNsize)/jnp.sqrt(m)
@@ -488,7 +486,8 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
               bound_train_E = jnp.hstack([bound_train_E,pac_train_E])
               bound_train_sup = jnp.hstack([bound_train_sup,pac_train_sup])
               Liphs_train = jnp.hstack([Liphs_train, Liph_train])
-              KL = KLdiag_from_log_scale(piParams,params[ls_i],0)
+              kl_mapped = jax.vmap(lambda beta: KLdiag_from_log_scale(piParams,beta,0))
+              KL = kl_mapped(params[ls_i])
               KLs = jnp.hstack([KLs, KL])
 
           #extraction of the test set cones
@@ -512,8 +511,6 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
           min_it_sup=epoch
           min_error_sup=jnp.mean(bound_train_sup+milestone_train_error,axis=0)
           best_params_sup=params_stacked
-          #jax.debug.print("min_error_sup {}", min_error_sup)
-          #jax.debug.print("params_stacked {}", params_stacked)
 
       #stores in the current epoch group all the measures for future diagnostic 
         hdata=[Z.a,Z.lambda_, Z.Ncones,bound_train_E,bound_train_sup,milestone_train_error,test_error,bound_test_E,bound_test_sup,val_jest_batch,val_grad_batch,b_c_e_stacked,Liphs_train,Liphs_test,KLs]
@@ -530,8 +527,5 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
     file_best.create_dataset('min iteration_sup',data=min_it_sup)
     file_best.create_dataset('best params_E',data=best_params_E)
     file_best.create_dataset('best params_sup',data=best_params_sup)
-
-    #jax.debug.print("min_error_sup final {}", min_error_sup)
-    #jax.debug.print("params_stacked final {}",best_params_sup)
 
         

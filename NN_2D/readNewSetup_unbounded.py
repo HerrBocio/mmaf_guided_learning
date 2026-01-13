@@ -34,11 +34,6 @@ train_errors=[]
 bound_test=[]
 test_errors=[]
 
-
-Epochs=range(1,epochs_nopreT+1) 
-Nepochs=epochs_nopreT
-preTlabel=''
-
 file_name= day#day+'_full_relu_std'+preTlabel#full_tanh_new_setup,full_relu_new_setup
 figure_name=""#"depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
 
@@ -84,7 +79,9 @@ for current_id in reversed(range(len(datasetsM))):
   
   alph=.5/A_estimatedM[current_id]
       
-  for i,arch in enumerate((archs)):#reversed      
+  for i,arch in enumerate((archs)):#reversed  
+        Nepochs = epochs[i]    
+        Epochs = range(1,Nepochs+1)
         fJ=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i])+'.txt','w')
         fJ.write('Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & CRPS & RMSE & rho[Lip(h)] at best Iter train. \n\n')
 
@@ -188,9 +185,6 @@ for current_id in reversed(range(len(datasetsM))):
 
                 for ele in whole_bound_test:
                     print("whole bound test sup", ele)
-
-                #print("!!!!!!!!!!!!!!!!!!!!!",np.min(whole_bound_train))
-                #print("????????????", np.min(whole_bound_test))
 
                 rng=jax.random.key(Nepochs)
                 
