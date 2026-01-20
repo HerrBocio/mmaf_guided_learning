@@ -1,10 +1,8 @@
-epochs = [60,110,200,500]
-epochs = [2,3]
+epochs = [80,130]#,200,500]
 delta=.025
 inp=3
 h_t=[1]
-archs=[[30,30,1],[100,100,1],[300,300,1],[800,800,1]]  ##
-archs=[[10,1],[30,30,1]]  ##
+archs=[[30,30,1],[100,100,1]]#,[300,300,1],[800,800,1]]  ##
 if len(epochs) != len(archs):
     print("Epochs and archs have to have the same length.")
     epochs = epochs[:len(archs)]
@@ -15,7 +13,7 @@ p=1
 c=1
 Ndraws=1000          
 
-folder_day = "1301test_"
+folder_day = "1501final_"
 
 pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/tables/" #'results/s_data/tables/'
 pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'results/s_data/figures/'
@@ -23,4 +21,4 @@ pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'re
 
 #path='/LOCAL/prol/s_data/'#nobias/'
 path="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/"
-day = folder_day
+day = "final_"

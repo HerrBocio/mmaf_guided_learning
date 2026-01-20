@@ -10,13 +10,8 @@ use_different_eps=False
 from datetime import datetime
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'
+os.environ["CUDA_VISIBLE_DEVICES"]='1'#,2,3' # on cuda I have to put 0
 from scipy.stats import kstest as kstest
-from scipy.stats import randint 
-from tqdm import trange
-#from multivariateRank import get_prerank
-from SGE import error,truePAC,LipC
-from STOU import ffnn_forward_pass,ffnn_loss_forward_pass
 import jax
 import jax.numpy as jnp
 from utils import *
@@ -67,14 +62,13 @@ if not os.path.exists(pathT):
 if not os.path.exists(pathF):
             os.makedirs(pathF)
 
-fTest_best_pir=open(pathT+'Table_Test_All_Pir.txt','w')
-fTest_best_pir.write('Dataset & Architecture & best Pir & Test CRPS\n\n')
+fTest_best_pir=open(pathT+'Table_All_Comb_Best_Pir.txt','w')
+fTest_best_pir.write('Dataset & Architecture & best Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & Validation CRPS & RMSE Val & Range CRPS_Val other prior & Test CRPS & Test RMSE\n\n')
 
 for current_id in reversed(range(len(datasetsM))):
     
   data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
   data_validation=data[:Ncoords,-(Ncones_test)*a_val[current_id]:-(Ncones_test-1)*a_val[current_id]]
-  #print(data_validation)
   b_validation=data_validation[:,-1]
   
   alph=.5/A_estimatedM[current_id]
@@ -93,6 +87,9 @@ for current_id in reversed(range(len(datasetsM))):
         best_prior = 0
         best_crps_val = np.inf
         corr_crps_test = np.inf
+        range_crps_val = []
+        best_rmse_val = np.inf
+        best_rmse_test = np.inf
 
         for pir in piRescaling:
               print('pir', pir,'\n',file=fTest)
@@ -144,14 +141,9 @@ for current_id in reversed(range(len(datasetsM))):
                       train_errors.append( np.mean(np.array(e_g.get('train_errors'))))
                       #min_bound_train.append(np.mean( np.array(e_g.get('min bound'))))
                       
-                      params=np.array(e_g.get('params_stacked'))
-                      kl_mapped=lambda beta: KLdiag_from_log_scale(piParams,beta,d)#(piParams,rhoParams,NNsize):
+                      print("KL",np.array(e_g.get('KL')))
+                      KL=np.mean(np.array(e_g.get('KL')))
 
-                      KL = jax.vmap(kl_mapped)(params)
-                      KL = jnp.mean(KL)
-                      #arams=jnp.
-                      #print(params[0].shape)
-                      #print(np.array(e_g.get('best_paramsmin error')))
                       bound_test_sup.append(np.mean( np.array(e_g.get('bound_test_sup'))))#-constants_test)
                       test_errors.append(np.mean(np.array(e_g.get('test_errors'))))
                       empirical_obj=np.hstack([empirical_obj,np.mean(np.array(e_g.get('val_jest')),axis=1)])
@@ -160,16 +152,9 @@ for current_id in reversed(range(len(datasetsM))):
                       Liph_train.append(np.mean(np.array(e_g.get('Lips_train'))))
                       Liph_test.append(np.mean(np.array(e_g.get('Lips_test'))))
 
-                      print(e_g.get("params_stacked"))
 
                       print(Epoch,'&',bound_train_sup[-1]+train_errors[-1],'&',bound_test_sup[-1]+test_errors[-1],'&',KL,'&',Liph_train[-1],file=f_epochs)
 
-                for elem in bound_train_sup:
-                    print("bound train sup ",elem)
-
-                for ele in bound_test_sup:
-                    print("bound test sup", ele)
-                
                 whole_bound_train = np.array(bound_train_sup)+np.array(train_errors)
                 best_whole_bound_train = np.min(whole_bound_train)
                 best_iter_train = np.argmin(whole_bound_train)+1
@@ -180,34 +165,30 @@ for current_id in reversed(range(len(datasetsM))):
 
                 print("best_iter_train", best_iter_train)
                 
-                for elem in whole_bound_train:
-                    print("whole bound train sup ",elem)
-
-                for ele in whole_bound_test:
-                    print("whole bound test sup", ele)
 
                 rng=jax.random.key(Nepochs)
                 
                 e_g=m_g.get('epoch'+str(best_iter_train))
-                best_params_sup = e_g.get('params_stacked')
                 emp_risk =np.array( e_g.get('val_jest'))
                 emp_risk=np.mean(emp_risk)
 
-                print("params",best_params_sup)
-                print("emp_risk", emp_risk)
+                b_g=m_g.get('min')
+                best_params_sup=jnp.array(b_g.get('best params_sup'))
+                min_it=np.array(b_g.get('min iteration_sup'))
+                min_error_sup = np.array(b_g.get('min_error_sup'))
+
+                #print("min_it = ",min_it,"; best_iter_train=",best_iter_train)
+                #print("min_error_sup",min_error_sup,"best_whole_bound_train",best_whole_bound_train)
+
 
                 Liph_train_best_iter = np.mean(e_g.get('Lips_train'),axis=0)
-                print("Lip",Liph_train_best_iter)
 
                 safe_mean=lambda beta: beta/best_params_sup.shape[0]
 
                 m_e_f_validation=np.zeros((0,Ndraws,1))
-                #print(data_validation.shape)
                 for n1 in range(p*c,data_validation.shape[0]-p*c):
                     coord_e_f=multi_ef_validation(data_validation[n1-p*c:n1+p*c+1,-2],best_params_sup[n1-p*c,:,:],inp,arch,mask,Ndraws,1,rng)
-                    #print(i,coord_e_f.shape)
                     m_e_f_validation=np.vstack([m_e_f_validation,coord_e_f.reshape((1,*coord_e_f.shape))])
-                #print(np.amax(m_e_f[0,:,:],axis=0).shape)
                 crps=[]
                 rmse=[]
                 for n1 in range(8):
@@ -221,22 +202,26 @@ for current_id in reversed(range(len(datasetsM))):
                   
                 print(pir, '&', np.round(best_whole_bound_train,decimals=4),'&',best_iter_train,'&', np.round(best_whole_bound_test,decimals=4), '&', best_iter_test,'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',Liph_train_best_iter,file=fJ) 
 
+                range_crps_val.append(np.mean(crps))
+
                 if np.mean(crps)<best_crps_val:
                      best_crps_val = np.mean(crps)
                      best_prior = pir
+                     best_prior_best_train_error = best_whole_bound_train
+                     best_prior_iter_train = best_iter_train
+                     best_prior_best_test_error = best_whole_bound_test
+                     best_prior_iter_test = best_iter_test
+                     best_rmse_val = np.mean(np.sqrt(rmse))
+
 
                 ########
 
                 data_test=np.array(m_g.get('data_test'))
                 b_test=np.array(e_g.get('cones_test'))
                 m_e_f_test=np.zeros((0,Ndraws,Ncones_test-1))
-                #print(data_test.shape)
                 for j in range(p*c,data_test.shape[0]-p*c):
                     coord_e_f=multi_ef_test(data_test[j-p*c:j+p*c+1,-(Ncones_test-1)*a_val[current_id]-2::a_val[current_id]],best_params_sup[j-p*c,:,:],inp,arch,mask,Ndraws,Ncones_test-1,rng)
-                    #print(i,coord_e_f.shape)
                     m_e_f_test=np.vstack([m_e_f_test,coord_e_f.reshape((1,*coord_e_f.shape))])
-                #print(m_e_f_test )
-                #print(np.amax(m_e_f[0,:,:],axis=0).shape)
                 crps=[]
                 rmse=[]
                 for n1 in range(8):
@@ -249,7 +234,6 @@ for current_id in reversed(range(len(datasetsM))):
                     rmse_coord.append(rmse_univ(b_test[n1,n2],m_e_f_test[n1,:,n2]))
                     rmse.append(rmse_coord)
                   
-                #print(np.array(crps[0]).shape)
                 qs=[.025,.05,.1,.15,.2,.25,.3,.35,.4,.45]#np.linspace(0.05,.45,10)##np.linspace(0.05,.45,10)
                 qs_label=['5%','10%','20%','30%','40%','50%','60%','70%','80%','90%']#print(crps)
                   
@@ -258,10 +242,9 @@ for current_id in reversed(range(len(datasetsM))):
 
                 if pir == best_prior:
                      corr_crps_test = np.mean(crps)
+                     best_rmse_test = np.mean(rmse)
 
                 #########
-
-              print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&', best_crps_val, file = fTest_best_pir)
 
               #log entire epochs plots - sup
               plt.figure(figsize=(12, 10))                  
@@ -298,7 +281,11 @@ for current_id in reversed(range(len(datasetsM))):
               plt.savefig(savename)
               plt.close()
 
-          
+        range_crps_val.sort()
+        print(range_crps_val)
+        range_other_prior_str = "["+str(range_crps_val[1])+","+str(range_crps_val[-1])+"]"
+
+        print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&', best_prior_best_train_error,'&',best_prior_iter_train,'&',best_prior_best_test_error,'&',best_prior_iter_test,'&',best_crps_val,'&',best_rmse_val,'&',range_other_prior_str,'&',corr_crps_test,'&',best_rmse_test, file = fTest_best_pir)  
           
 fJ.close() 
 f_epochs.close()             
