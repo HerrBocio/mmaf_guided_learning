@@ -10,7 +10,7 @@ use_different_eps=False
 from datetime import datetime
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]='1'#,2,3' # on cuda I have to put 0
+os.environ["CUDA_VISIBLE_DEVICES"]='2'#,2,3' # on cuda I have to put 0
 from scipy.stats import kstest as kstest
 import jax
 import jax.numpy as jnp
@@ -41,6 +41,9 @@ A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
 c_estimatedM=[1,1]
 
 piRescaling=list(range(10,230,20))
+piRescaling_str = ""
+for pir in piRescaling:
+     piRescaling_str += "& CRPS_"+str(pir)+"& RMSE_"+str(pir)
 
 m_batches = [m_batches]
 Nbatches=124 # for N=1e6 and m=1e3
@@ -49,12 +52,7 @@ Ncones_test=101
 
 Ncrps=100
 
-calibration=False
-start=10-1
 
-#pre_ranks=["multivariate_rank","average_rank","band_depth","mean","variance","energy_score"]
-#arch_x_val=[1e4,1e5] #1,1e1,1e2,
-#arch_legend=['epoch1','epoch10','epoch20','epoch30','epoch40','epoch50']
 
 if not os.path.exists(pathT):
             os.makedirs(pathT)
@@ -64,8 +62,16 @@ if not os.path.exists(pathF):
 
 fTest_best_pir=open(pathT+'Table_All_Comb_Best_Pir.txt','w')
 fTest_best_pir.write('Dataset & Architecture & best Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & Validation CRPS & RMSE Val & Range CRPS_Val other prior & Test CRPS & Test RMSE\n\n')
+fVal = open(pathT+ "Validation_table.txt",'w')
+fVal.write('Dataset & Architecture'+piRescaling_str+'\n\n')
 
-for current_id in reversed(range(len(datasetsM))):
+fTest = open(pathT+ "Test_table.txt",'w')
+fTest.write('Dataset & Architecture & Pi & KL & rho[Lip(h)] & Bound & CRPS & RMSE'+'\n\n')
+
+fMMAF = open(pathT+"MMAF_Table.txt",'w')
+fMMAF.write("Dataset & Arch & Best Pir & KL& rho[Lip(h)] & bound Train & CRPS_Val & RMSE_Val & CRPS_Test & RMSE_ test")
+
+for current_id in range(len(datasetsM)):
     
   data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
   data_validation=data[:Ncoords,-(Ncones_test)*a_val[current_id]:-(Ncones_test-1)*a_val[current_id]]
@@ -79,7 +85,6 @@ for current_id in reversed(range(len(datasetsM))):
         fJ=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i])+'.txt','w')
         fJ.write('Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & CRPS & RMSE & rho[Lip(h)] at best Iter train. \n\n')
 
-        fTest=open(pathT+'Table_Test_'+figure_name+''+datasetsname_short[current_id]+str(archs[i])+'.txt','w')
 
 
         mask=mask_gen(inp,arch)
@@ -89,10 +94,11 @@ for current_id in reversed(range(len(datasetsM))):
         corr_crps_test = np.inf
         range_crps_val = []
         best_rmse_val = np.inf
-        best_rmse_test = np.inf
+        corr_rmse_test = np.inf
+
+        val_prior_row_str = ""
 
         for pir in piRescaling:
-              print('pir', pir,'\n',file=fTest)
               log_pir=-jnp.log(pir)
               piScale=jnp.ones(d)*log_pir
               piParams=[jnp.zeros(d),piScale]
@@ -141,7 +147,7 @@ for current_id in reversed(range(len(datasetsM))):
                       train_errors.append( np.mean(np.array(e_g.get('train_errors'))))
                       #min_bound_train.append(np.mean( np.array(e_g.get('min bound'))))
                       
-                      print("KL",np.array(e_g.get('KL')))
+                      #print("KL",np.array(e_g.get('KL')))
                       KL=np.mean(np.array(e_g.get('KL')))
 
                       bound_test_sup.append(np.mean( np.array(e_g.get('bound_test_sup'))))#-constants_test)
@@ -182,6 +188,11 @@ for current_id in reversed(range(len(datasetsM))):
 
 
                 Liph_train_best_iter = np.mean(e_g.get('Lips_train'),axis=0)
+                KL_train_best_iter = np.mean(e_g.get('KL'),axis=0)
+                #Liphhhhh = np.array(e_g.get('Lips_train'))
+                #KLLLLLLLLL= np.array(e_g.get('KL'))
+                #print("LipHHHH", Liphhhhh)
+                #print("KLLLLL",KLLLLLLLLL)
 
                 safe_mean=lambda beta: beta/best_params_sup.shape[0]
 
@@ -201,6 +212,7 @@ for current_id in reversed(range(len(datasetsM))):
                   rmse.append(rmse_coord)
                   
                 print(pir, '&', np.round(best_whole_bound_train,decimals=4),'&',best_iter_train,'&', np.round(best_whole_bound_test,decimals=4), '&', best_iter_test,'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',Liph_train_best_iter,file=fJ) 
+                val_prior_row_str += "& "+str(np.round(np.mean(crps),decimals=4))+'&'+str(np.round(np.mean(np.sqrt(rmse)),decimals=4))
 
                 range_crps_val.append(np.mean(crps))
 
@@ -237,12 +249,11 @@ for current_id in reversed(range(len(datasetsM))):
                 qs=[.025,.05,.1,.15,.2,.25,.3,.35,.4,.45]#np.linspace(0.05,.45,10)##np.linspace(0.05,.45,10)
                 qs_label=['5%','10%','20%','30%','40%','50%','60%','70%','80%','90%']#print(crps)
                   
-                print(np.round(np.mean(crps),decimals=4), file=fTest) 
-                #print(np.round(KL,decimals=4),'&',np.round(pac_test_min,decimals=4),'&' , np.round(pac_true_min,decimals=4),'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.sqrt(np.mean(rmse)),decimals=4),'&',min_it, file=fTest)    #'&',np.round(emp_risk,decimals=4)
+                #print(pir,'&',np.round(KL,decimals=4),'&',np.round(pac_test_min,decimals=4),'&' , np.round(pac_true_min,decimals=4),'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.sqrt(np.mean(rmse)),decimals=4), file=fTest)    #'&',np.round(emp_risk,decimals=4)
 
                 if pir == best_prior:
                      corr_crps_test = np.mean(crps)
-                     best_rmse_test = np.mean(rmse)
+                     corr_rmse_test = np.mean(rmse)
 
                 #########
 
@@ -277,15 +288,22 @@ for current_id in reversed(range(len(datasetsM))):
               plt.ylabel("rho[Lip(h)]")
               plt.legend(['average expected value of Lip(h)'])
               
-              savename = pathF+"SUP"+datasetsname_short[current_id]+ 'prior' + str(pir)+folder_day+str(arch)+figure_name +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png'.replace("/","-")
+              savename = pathF+datasetsname_short[current_id]+ 'prior' + str(pir)+folder_day+str(arch)+figure_name +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png'.replace("/","-")
               plt.savefig(savename)
               plt.close()
 
+        
+        print(datasetsname_short[current_id],'&',arch,' ',val_prior_row_str,file =fVal)
         range_crps_val.sort()
-        print(range_crps_val)
+        #print(range_crps_val)
         range_other_prior_str = "["+str(range_crps_val[1])+","+str(range_crps_val[-1])+"]"
 
-        print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&', best_prior_best_train_error,'&',best_prior_iter_train,'&',best_prior_best_test_error,'&',best_prior_iter_test,'&',best_crps_val,'&',best_rmse_val,'&',range_other_prior_str,'&',corr_crps_test,'&',best_rmse_test, file = fTest_best_pir)  
+        print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&', best_prior_best_train_error,'&',best_prior_iter_train,'&',best_prior_best_test_error,'&',best_prior_iter_test,'&',best_crps_val,'&',best_rmse_val,'&',range_other_prior_str,'&',corr_crps_test,'&',corr_rmse_test, file = fTest_best_pir)  
+        
+        
+        print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4), file = fMMAF)  
+
+
           
 fJ.close() 
 f_epochs.close()             

@@ -42,9 +42,10 @@ eps=3.
 p=1
 
 lambda_=[]
-a_val=[8,8]
+#a_val=[8,8]
+a_val =[]
 
-"""
+
 #lambda_ estimation
 for i in range(len(datasetsM)):
   l=A_estimatedM[i] * np.minimum(2.0, c_estimatedM[i]) / (2*c_estimatedM[i])
@@ -57,7 +58,7 @@ for i in range(len(datasetsM)):
   a_val.append(int( a) )
 
 print('a val',a_val,lambda_)
-"""
+
 
 center_pixel=5
 

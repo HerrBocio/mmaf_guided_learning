@@ -5,7 +5,7 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
 from STOU import STOU
-from params2 import *
+from params_OLR import *
 from SGE_unbounded import Optimization
 from utils import *
 import numpy as np
@@ -22,14 +22,14 @@ path='/LOCAL/jasst/results/'
 #path='/afs/tu-chemnitz.de/project/calibration/debug/'
 
 
-####################################################################################
-# This script launches the optimization routine for synthetic data GauA4 and NIGA4
-# The hyperparameters A,c,lambda_ are already estimated
+hatA = -np.log(1 - g01 / 2) / ( dt)
+hatc = -(hatA * dy) / np.log(1 - g10 / 2)
 
+lambda_=hatA * np.minimum(2.0, hatc) / (2*hatc)
 
 ids=[1]
-A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
-c_estimatedM=[1,1]
+A_estimatedM=[1.669]#,]#,[3.840956]#
+c_estimatedM=[11.751]
 
 m_test= 101
 
@@ -42,12 +42,11 @@ eps=3.
 p=1
 
 lambda_=[]
-#a_val=[8,8]
-a_val =[]
+a_val=[] #[64]
 
 
 #lambda_ estimation
-for i in range(len(datasetsM)):
+for i in range(len(datasetsname_short)):
   l=A_estimatedM[i] * np.minimum(2.0, c_estimatedM[i]) / (2*c_estimatedM[i])
   print("lambda: ",l)
   lambda_.append(l)
@@ -81,10 +80,8 @@ for i,arch in enumerate(archs): # reversed
   #loops over architectures
   print(arch,dimComp([inp,*arch]))
   Epochs = epochs[i]
-  for current_id in range(len(datasetsM)):
+  for current_id in range(len(datasetsname_short)):
     #loops over datasets
-    print(datasetsM[current_id]) 
-    data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
     data=data[:Ncoords,:]
     N=data.shape[1]
     x_size=data.shape[0]
@@ -96,7 +93,7 @@ for i,arch in enumerate(archs): # reversed
       pathPrior=path+'prior'+str(piScalingLabel[k])+'var/'
       create_folder(pathPrior)
       #jax.debug.print(pathPrior+day+filename+pretraining_labels +str(arch)+'_' +str(datasetsM[current_id])[:3] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5')
-      file_ = h5py.File(pathPrior+day+filename+str(arch)+'_' +str(datasetsM[current_id])[:3] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5','w')
+      file_ = h5py.File(pathPrior+day+filename+str(arch)+'_' +datasetsname_short[current_id] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5','w')
       file_m=file_.create_group('m'+str(m_batches))
       #print('m=',m_batches)
       Z = STOU(A_estimatedM[current_id],c_estimatedM[current_id],arch,N-m_test*a_val[current_id],m_test-1,m_batches,a_val[current_id],p,h_t[0])
