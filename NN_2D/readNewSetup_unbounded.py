@@ -33,7 +33,7 @@ file_name= day#day+'_full_relu_std'+preTlabel#full_tanh_new_setup,full_relu_new_
 figure_name=""#"depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
 
 
-a_val=[8,8]
+a_val=[3,3]
 #[p]
 
 delta=0.025
@@ -41,9 +41,11 @@ A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
 c_estimatedM=[1,1]
 
 piRescaling=list(range(10,230,20))
-piRescaling_str = ""
+piRescaling_str_val = ""
+piRescaling_str_train = ""
 for pir in piRescaling:
-     piRescaling_str += "& CRPS_"+str(pir)+"& RMSE_"+str(pir)
+     piRescaling_str_val += "& CRPS_"+str(pir)+"& RMSE_"+str(pir)
+     piRescaling_str_train += "& epoch_"+str(pir)+"& Lip_"+str(pir)+"& KL_"+str(pir)
 
 m_batches = [m_batches]
 Nbatches=124 # for N=1e6 and m=1e3
@@ -63,13 +65,16 @@ if not os.path.exists(pathF):
 fTest_best_pir=open(pathT+'Table_All_Comb_Best_Pir.txt','w')
 fTest_best_pir.write('Dataset & Architecture & best Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & Validation CRPS & RMSE Val & Range CRPS_Val other prior & Test CRPS & Test RMSE\n\n')
 fVal = open(pathT+ "Validation_table.txt",'w')
-fVal.write('Dataset & Architecture'+piRescaling_str+'\n\n')
+fVal.write('Dataset & Architecture'+piRescaling_str_val+'\n\n')
 
 fTest = open(pathT+ "Test_table.txt",'w')
 fTest.write('Dataset & Architecture & Pi & KL & rho[Lip(h)] & Bound & CRPS & RMSE'+'\n\n')
 
 fMMAF = open(pathT+"MMAF_Table.txt",'w')
 fMMAF.write("Dataset & Arch & Best Pir & KL& rho[Lip(h)] & bound Train & CRPS_Val & RMSE_Val & CRPS_Test & RMSE_ test")
+
+fTrain = open(pathT+"Train_Table.txt",'w')
+fTrain.write('Dataset & Architecture'+piRescaling_str_train+'\n\n')
 
 for current_id in range(len(datasetsM)):
     
@@ -82,8 +87,8 @@ for current_id in range(len(datasetsM)):
   for i,arch in enumerate((archs)):#reversed  
         Nepochs = epochs[i]    
         Epochs = range(1,Nepochs+1)
-        fJ=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i])+'.txt','w')
-        fJ.write('Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & CRPS & RMSE & rho[Lip(h)] at best Iter train. \n\n')
+        #fJ=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i])+'.txt','w')
+        #fJ.write('Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & CRPS & RMSE & rho[Lip(h)] at best Iter train. \n\n')
 
 
 
@@ -97,6 +102,7 @@ for current_id in range(len(datasetsM)):
         corr_rmse_test = np.inf
 
         val_prior_row_str = ""
+        train_prior_row_str =" & $"+str(arch[0])+"^2$ & "
 
         for pir in piRescaling:
               log_pir=-jnp.log(pir)
@@ -211,8 +217,9 @@ for current_id in range(len(datasetsM)):
                   rmse_coord.append(rmse_univ(b_validation[n1],m_e_f_validation[n1,:,0]))
                   rmse.append(rmse_coord)
                   
-                print(pir, '&', np.round(best_whole_bound_train,decimals=4),'&',best_iter_train,'&', np.round(best_whole_bound_test,decimals=4), '&', best_iter_test,'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',Liph_train_best_iter,file=fJ) 
-                val_prior_row_str += "& "+str(np.round(np.mean(crps),decimals=4))+'&'+str(np.round(np.mean(np.sqrt(rmse)),decimals=4))
+                #print(pir, '&', np.round(best_whole_bound_train,decimals=4),'&',best_iter_train,'&', np.round(best_whole_bound_test,decimals=4), '&', best_iter_test,'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',Liph_train_best_iter,file=fJ) 
+                val_prior_row_str += " & "+str(np.round(np.mean(crps),decimals=4))+'&'+str(np.round(np.mean(np.sqrt(rmse)),decimals=4))
+                train_prior_row_str += " & "+str(best_iter_train)+' & '+str(np.round(Liph_train_best_iter,decimals=4))+' & '+str(np.round(KL_train_best_iter, decimals=4))
 
                 range_crps_val.append(np.mean(crps))
 
@@ -294,6 +301,7 @@ for current_id in range(len(datasetsM)):
 
         
         print(datasetsname_short[current_id],'&',arch,' ',val_prior_row_str,file =fVal)
+        print(datasetsname_short[current_id],'& ',best_prior,'& ',train_prior_row_str,' \\',file =fTrain)
         range_crps_val.sort()
         #print(range_crps_val)
         range_other_prior_str = "["+str(range_crps_val[1])+","+str(range_crps_val[-1])+"]"
