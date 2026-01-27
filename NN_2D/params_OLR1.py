@@ -1,20 +1,16 @@
 import netCDF4 as nc
 
-epochs = [12000,12000]
+
 delta=.025
 inp=3
 h_t=[1]
-archs=[[30,30,1],[100,100,1],[300,300,1]]#,[800,800,1]]
-#archs = [[800,800,800,1]]  ##
-if len(epochs) != len(archs):
-    print("Epochs and archs have to have the same length.")
-    epochs = epochs[:len(archs)]
+archs=[[30,30,1]]
+
 file_path = '/afs/tu-chemnitz.de/project/calibration/OLR_full.nc'#Almut_plusFuture.nc'
-olr = nc.Dataset(file_path, mode="r").variables
+#olr = nc.Dataset(file_path, mode="r").variables
 #print(olr)
-data=olr['olra'][:,:]#,:]
+#data=olr['olra'][:,:]#,:]
 datasetsname_short= ['OLR']#
-m_batches=1000 
 p=1
 c=1
 Ndraws=1000          

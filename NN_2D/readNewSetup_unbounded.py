@@ -34,6 +34,7 @@ figure_name=""#"depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
 
 
 a_val=[3,3]
+a_val = [8,8]
 #[p]
 
 delta=0.025
@@ -45,7 +46,7 @@ piRescaling_str_val = ""
 piRescaling_str_train = ""
 for pir in piRescaling:
      piRescaling_str_val += "& CRPS_"+str(pir)+"& RMSE_"+str(pir)
-     piRescaling_str_train += "& epoch_"+str(pir)+"& Lip_"+str(pir)+"& KL_"+str(pir)
+     piRescaling_str_train += "& epoch_"+str(pir)+"& Lip_"+str(pir)+"& KL_"+str(pir)+"& empError"+str(pir)
 
 m_batches = [m_batches]
 Nbatches=124 # for N=1e6 and m=1e3
@@ -67,17 +68,18 @@ fTest_best_pir.write('Dataset & Architecture & best Pir & best Train Err. & best
 fVal = open(pathT+ "Validation_table.txt",'w')
 fVal.write('Dataset & Architecture'+piRescaling_str_val+'\n\n')
 
-fTest = open(pathT+ "Test_table.txt",'w')
+fTest = open(pathT+ "Test_table_a="+str(a_val[0])+".txt",'w')
 fTest.write('Dataset & Architecture & Pi & KL & rho[Lip(h)] & Bound & CRPS & RMSE'+'\n\n')
 
-fMMAF = open(pathT+"MMAF_Table.txt",'w')
-fMMAF.write("Dataset & Arch & Best Pir & KL& rho[Lip(h)] & bound Train & CRPS_Val & RMSE_Val & CRPS_Test & RMSE_ test")
+fMMAF = open(pathT+"MMAF_Table_a="+str(a_val[0])+".txt",'w')
+fMMAF.write("Dataset & Arch & Best Pir & m & KL& rho[Lip(h)] & rho[r(h)] & bound Train & Horizon_val & CRPS_Val & RMSE_Val & Horizon_test & CRPS_Test & RMSE_ test")
 
-fTrain = open(pathT+"Train_Table.txt",'w')
+fTrain = open(pathT+"Train_Table_a="+str(a_val[0])+".txt",'w')
 fTrain.write('Dataset & Architecture'+piRescaling_str_train+'\n\n')
 
 for current_id in range(len(datasetsM)):
-    
+  print(datasetsname_short[current_id], file=fTrain)
+  print(datasetsname_short[current_id], file=fMMAF)
   data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
   data_validation=data[:Ncoords,-(Ncones_test)*a_val[current_id]:-(Ncones_test-1)*a_val[current_id]]
   b_validation=data_validation[:,-1]
@@ -188,6 +190,7 @@ for current_id in range(len(datasetsM)):
                 best_params_sup=jnp.array(b_g.get('best params_sup'))
                 min_it=np.array(b_g.get('min iteration_sup'))
                 min_error_sup = np.array(b_g.get('min_error_sup'))
+                train_emp_error_best_it = np.mean(np.array(e_g.get('train_errors')))
 
                 #print("min_it = ",min_it,"; best_iter_train=",best_iter_train)
                 #print("min_error_sup",min_error_sup,"best_whole_bound_train",best_whole_bound_train)
@@ -219,7 +222,7 @@ for current_id in range(len(datasetsM)):
                   
                 #print(pir, '&', np.round(best_whole_bound_train,decimals=4),'&',best_iter_train,'&', np.round(best_whole_bound_test,decimals=4), '&', best_iter_test,'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',Liph_train_best_iter,file=fJ) 
                 val_prior_row_str += " & "+str(np.round(np.mean(crps),decimals=4))+'&'+str(np.round(np.mean(np.sqrt(rmse)),decimals=4))
-                train_prior_row_str += " & "+str(best_iter_train)+' & '+str(np.round(Liph_train_best_iter,decimals=4))+' & '+str(np.round(KL_train_best_iter, decimals=4))
+                train_prior_row_str += " & "+str(best_iter_train)+' & '+str(np.round(Liph_train_best_iter,decimals=4))+' & '+str(np.round(KL_train_best_iter, decimals=4))+' & '+str(np.round(train_emp_error_best_it, decimals=4))
 
                 range_crps_val.append(np.mean(crps))
 
@@ -231,6 +234,7 @@ for current_id in range(len(datasetsM)):
                      best_prior_best_test_error = best_whole_bound_test
                      best_prior_iter_test = best_iter_test
                      best_rmse_val = np.mean(np.sqrt(rmse))
+                     best_prior_emp_train_error = train_emp_error_best_it
 
 
                 ########
@@ -264,6 +268,8 @@ for current_id in range(len(datasetsM)):
 
                 #########
 
+
+              """
               #log entire epochs plots - sup
               plt.figure(figsize=(12, 10))                  
               plt.subplot(411)
@@ -298,10 +304,12 @@ for current_id in range(len(datasetsM)):
               savename = pathF+datasetsname_short[current_id]+ 'prior' + str(pir)+folder_day+str(arch)+figure_name +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png'.replace("/","-")
               plt.savefig(savename)
               plt.close()
+              """
 
         
         print(datasetsname_short[current_id],'&',arch,' ',val_prior_row_str,file =fVal)
-        print(datasetsname_short[current_id],'& ',best_prior,'& ',train_prior_row_str,' \\',file =fTrain)
+        #print(datasetsname_short[current_id],'& ',best_prior,'& ',train_prior_row_str,' \\'+'\\'+'\n',file =fTrain)
+        print(train_prior_row_str,' \\'+'\\'+'\n',file =fTrain)
         range_crps_val.sort()
         #print(range_crps_val)
         range_other_prior_str = "["+str(range_crps_val[1])+","+str(range_crps_val[-1])+"]"
@@ -309,11 +317,11 @@ for current_id in range(len(datasetsM)):
         print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&', best_prior_best_train_error,'&',best_prior_iter_train,'&',best_prior_best_test_error,'&',best_prior_iter_test,'&',best_crps_val,'&',best_rmse_val,'&',range_other_prior_str,'&',corr_crps_test,'&',corr_rmse_test, file = fTest_best_pir)  
         
         
-        print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4), file = fMMAF)  
+        print("& $",arch[0],'^2$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  
 
 
           
-fJ.close() 
+#fJ.close() 
 f_epochs.close()             
 hf.close()
 
