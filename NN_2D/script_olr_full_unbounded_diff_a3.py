@@ -1,6 +1,6 @@
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'#,2,3'
+os.environ["CUDA_VISIBLE_DEVICES"]='2'#,2,3'#,2,3'
 os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
@@ -18,7 +18,7 @@ from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.colors import Normalize
-from params_OLR import *
+from params_OLR3 import *
 
 def makeh5(net,hdata,names,path):
 	
@@ -266,8 +266,8 @@ for l_,boolean in enumerate(pretraining):
     Nepochs=15000  #len(Epochs)
     preTlabel='_preT'
   else:
-    Epochs=[5000]  #range(1,5001,10) #
-    Nepochs=5000   #len(Epochs)
+    Epochs=[20000]  #range(1,5001,10) #
+    Nepochs=20000   #len(Epochs)
     preTlabel=''
   for Epoch in Epochs:
       for i,arch in enumerate(archs): # reversed

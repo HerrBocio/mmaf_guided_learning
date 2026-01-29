@@ -150,59 +150,6 @@ def multi_ef_test(test_cones,params,inp,arch,mask,Ndraws,Ncones_test,rng):
         return m_e_f
 
 
-
-def linear_detrending(data):
-
-
-	'''
-	Spatio-temporal OLS method: it is assumed the spatio-temporal indices are integers spanning from 1 to ns (nt)
-	'''
-
-	ns,nt= np.shape(data)
-	
-	one_t =  lambda row: jnp.array([jnp.sum( row*j )for j in range(nt)])
-	
-	one_t = jnp.sum(jax.vmap(one_t)(data))
-
-	print('one t', one_t.shape)
-  
-	tbar= nt*(nt+1)/2
-
-	sbar= ns*(ns+1)/2
-
-	xbar = jnp.mean(data)
-
-	two_t = jnp.sum( jnp.arange(nt)**2)*ns
-	
-	a_t= - (one_t - ns*nt*xbar*tbar)/(two_t - ns*nt*tbar**2)
-
-	one_s =  lambda row:jnp.array([  jnp.sum(row*i) for i in range(ns)])
-	
-	one_s = jnp.sum(jax.vmap(one_s)(np.transpose(data)))
-	
-	two_s = jnp.sum( jnp.arange(ns)**2)*nt
-
-	a_s =  (one_s - ns*nt*xbar*sbar)/(two_s - ns*nt*sbar**2)
-	
-	b = xbar - a_s * sbar - a_t * tbar
-
-	return a_t,a_s,b
-
-
-def rescalingterm(d,eps=0):
-  m=np.amin(d) 
-  M=np.amax(d)
-  #p=(1-2*eps)/(M-m)
-  #q=(M*eps-(1-eps)*m)/(M-m)
-  p=2/(M-m)
-  q=(m+M)/(m-M)
-  return p,q
-
-def rescalingInv(d,slope,q):
-  print('slope inv',slope,q)
-  return (d-q)/slope
-
-
 def mask_gen(inp,arch):
   
     struct=[inp,*arch]
@@ -227,28 +174,6 @@ def post(rhoP,num_realizations=1,seed=1):
     return sam
     
 
-def rescalingU1(d,eps=0):
-  m=np.amin(d)
-  M=np.amax(d)
-  #p=(1-2*eps)/(M-m) 
-  #q=(M*eps-(1-eps)*m)/(M-m)
-  p=2/(M-m)
-  q=(m+M)/(m-M)
-  return d*p+q,p,q
-
-
-
-pretraining=True
-if pretraining:
-  Epochs=range(1,12001,10) #
-  Nepochs=12000#len(Epochs)
-  preTlabel='_preT'
-else:
-  Epochs=range(1,5001,10) #
-  Nepochs=20000#len(Epochs)
-  preTlabel=''
-  
-day='11_02'
 file_name= day+'_depth_rescaling'+preTlabel#full_tanh_new_setup,full_relu_new_setup
 figure_name=day+'_olr_depth_rescaling'+preTlabel
 

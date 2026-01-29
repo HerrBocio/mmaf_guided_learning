@@ -18,7 +18,7 @@ from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.colors import Normalize
-from params_OLR import *
+from params_OLR1 import *
 
 def makeh5(net,hdata,names,path):
 	
@@ -260,9 +260,18 @@ rescaling=False #True
 
 #print('dataset size',OLR.shape)
 for l_,boolean in enumerate(pretraining):  
+  
+  if boolean:
+    Epochs=[15000] #range(1,12001,10) #
+    Nepochs=15000  #len(Epochs)
+    preTlabel='_preT'
+  else:
+    Epochs=[20000]  #range(1,5001,10) #
+    Nepochs=20000   #len(Epochs)
+    preTlabel=''
+  for Epoch in Epochs:
       for i,arch in enumerate(archs): # reversed
         print(arch)
-        Epoch = epochs[i]
         for current_id in reversed(range(len(datasets))):
                 print(datasets[current_id]) 
                 inp=int(np.sum([2*np.floor(c_estimated[current_id]*el)+1 for el in range(1,p+1)]))
@@ -294,7 +303,7 @@ for l_,boolean in enumerate(pretraining):
                 		
 		
                 #print("fixed val for a_t", a_val)
-                print("N,N_train,Ncones_test,a_val:",N,N_train,Ncones_test,a_val)
+
 			
                 m=N_train//a_val
                 m_test= (N - N_train)//a_val  # N_test = 1266         
@@ -309,7 +318,7 @@ for l_,boolean in enumerate(pretraining):
                                         os.makedirs(pathPrior)
                                         print("folder created")
 				#for m in reversed(m_batches): #reversed
-                                file_ = h5py.File(pathPrior+day+str(arch) +'_' +str(datasets[current_id]) +'_a' +str(a_val) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m) +'_Epoch_'+str(Epoch)+'.h5','w')
+                                file_ = h5py.File(pathPrior+day+str(arch) +'_' +str(datasets[current_id]) +'_a' +str(a_val) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m) +'_Epoch_'+str(Epochs)+'.h5','w')
                                 file_m=file_.create_group('m'+str(m))
                                 print('m=',m)		
                                 Z = STOU(A_estimated[current_id],c,arch,N-m_test*a_val,m_test-1,m,a_val,p,h_t)

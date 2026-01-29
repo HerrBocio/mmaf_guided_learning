@@ -266,8 +266,8 @@ for l_,boolean in enumerate(pretraining):
     Nepochs=15000  #len(Epochs)
     preTlabel='_preT'
   else:
-    Epochs=[5000]  #range(1,5001,10) #
-    Nepochs=5000   #len(Epochs)
+    Epochs=[20000]  #range(1,5001,10) #
+    Nepochs=20000   #len(Epochs)
     preTlabel=''
   for Epoch in Epochs:
       for i,arch in enumerate(archs): # reversed

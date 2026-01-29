@@ -1,26 +1,23 @@
-a_val=[3,3]
-a_val = [8,8]
-epochs = [80,200]
-if a_val[0]== 3:
-    epochs = [20, 60]
-#epochs = [700]
+import netCDF4 as nc
+
+
 delta=.025
 inp=3
 h_t=[1]
 archs=[[10,10,1],[10,10,10,10,10,1]]
-if len(epochs) != len(archs):
-    print("Epochs and archs have to have the same length.")
-    epochs = epochs[:len(archs)]
-datasetsM= ['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']#
-datasetsname_short= ['Gau','NIG']#
-m_batches=1000 
+epochs = [15000,45000]
+
+
+file_path = '/afs/tu-chemnitz.de/project/calibration/OLR_full.nc'#Almut_plusFuture.nc'
+#olr = nc.Dataset(file_path, mode="r").variables
+#print(olr)
+#data=olr['olra'][:,:]#,:]
+datasetsname_short= ['OLR']#
 p=1
 c=1
 Ndraws=1000          
 
-#folder_day = "2201final_different_a_"
-#folder_day="1501final_"
-folder_day ="wider_archs_"
+folder_day = "OLR_new_archs_"
 
 pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/tables/" #'results/s_data/tables/'
 pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'results/s_data/figures/'
@@ -28,6 +25,5 @@ pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'re
 
 #path='/LOCAL/prol/s_data/'#nobias/'
 path="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/"
-#day = "final_different_a"
-#day = "final_"
 day = "2901"
+piScalingLabel=list(range(10,230,20))

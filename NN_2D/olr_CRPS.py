@@ -46,8 +46,8 @@ if pretraining:
   Nepochs=12000#len(Epochs)
   preTlabel='_preT'
 else:
-  Epochs=[5000] #
-  Nepochs=5000#len(Epochs)
+  Epochs=[20000] #
+  Nepochs=20000#len(Epochs)
   preTlabel=''
   
 day='12_18' # 01_13

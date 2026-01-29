@@ -1,6 +1,6 @@
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'#,2,3'
+os.environ["CUDA_VISIBLE_DEVICES"]='1'#,2,3'#,2,3'
 os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
@@ -18,7 +18,7 @@ from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.colors import Normalize
-from params_OLR import *
+from params_OLR2 import *
 
 def makeh5(net,hdata,names,path):
 	
@@ -223,14 +223,14 @@ lambda_=[]
 a_val=[]
 
 #m_batches=[500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000]
-m_batches=[60] #range(1000,11000,1000)#[3000,4000,5000,6000,7000,8000,9000,10000]##[
+#m_batches=[60] #range(1000,11000,1000)#[3000,4000,5000,6000,7000,8000,9000,10000]##[
 m_test= 32
 Ncones_test=18
 
 #,[30,30,1]]#,[100,100,1],[300,300,1]]#[8,10,8,1]]#,[10,1][8,9,11,10,1],[1],
 #,33]#99,?
 #lambda_ estimation
-'''
+"""
 for i in range(len(datasets)):
   l=A_estimated[i] * np.minimum(2.0, c_estimated[i]) / (2*c_estimated[i])
   print(l)
@@ -240,7 +240,7 @@ for i in range(len(datasets)):
   a_val.append(int( a) )
 
 print('a val',a_val,lambda_)
-'''
+"""
 
 #piRescaling=range(10,60,10)
 #piRescaling=[1,*piRescaling]
@@ -260,9 +260,18 @@ rescaling=False #True
 
 #print('dataset size',OLR.shape)
 for l_,boolean in enumerate(pretraining):  
+  
+  if boolean:
+    Epochs=[15000] #range(1,12001,10) #
+    Nepochs=15000  #len(Epochs)
+    preTlabel='_preT'
+  else:
+    Epochs=[20000]  #range(1,5001,10) #
+    Nepochs=20000   #len(Epochs)
+    preTlabel=''
+  for Epoch in Epochs:
       for i,arch in enumerate(archs): # reversed
         print(arch)
-        Epoch = epochs[i]
         for current_id in reversed(range(len(datasets))):
                 print(datasets[current_id]) 
                 inp=int(np.sum([2*np.floor(c_estimated[current_id]*el)+1 for el in range(1,p+1)]))
@@ -275,26 +284,31 @@ for l_,boolean in enumerate(pretraining):
 
                 N=data.shape[1]
                 x_size=data.shape[0]
-                a_val=64
+                #a_val=64
 
-                N_train=  N - (Ncones_test+1)*a_val  #3002 # 
+                N_train=  2280 #N - (Ncones_test+1)*a_val  #3002 # 
 			
+
+                
+
+
                 lambda_=A_estimated[current_id] * np.minimum(2.0, c_estimated[current_id]) / (2*c_estimated[current_id])    
-			
-                a_search=lambda x : lambda_*h_t*(x-p) + np.log(0.025*x/(2*eps*N_train)) 
+                #a_val= np.ceil(jnp.log(m)/(2*lambda_)+p) but we don't know m, just m=N/a_val
+                a_search=lambda a : lambda_*(a-p) -1/2* np.log(N_train/a) 
+                #a_search=lambda x : lambda_*h_t*(x-p) + np.log(0.025*x/(2*eps*N_train)) 
                 
                 #a_val computed
                 
-                #a_val= int(np.ceil(newton(a_search,1)))
+                a_val= int(np.ceil(newton(a_search,1))) # 1=a_0, starting point
 
-                #print('newton',a_val)
+                print('newton',a_val)
 
                 # a_val fixed
 		
                 		
 		
                 #print("fixed val for a_t", a_val)
-                print("N,N_train,Ncones_test,a_val:",N,N_train,Ncones_test,a_val)
+
 			
                 m=N_train//a_val
                 m_test= (N - N_train)//a_val  # N_test = 1266         
@@ -309,7 +323,7 @@ for l_,boolean in enumerate(pretraining):
                                         os.makedirs(pathPrior)
                                         print("folder created")
 				#for m in reversed(m_batches): #reversed
-                                file_ = h5py.File(pathPrior+day+str(arch) +'_' +str(datasets[current_id]) +'_a' +str(a_val) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m) +'_Epoch_'+str(Epoch)+'.h5','w')
+                                file_ = h5py.File(pathPrior+day+str(arch) +'_' +str(datasets[current_id]) +'_a' +str(a_val) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m) +'_Epoch_'+str(Epochs)+'.h5','w')
                                 file_m=file_.create_group('m'+str(m))
                                 print('m=',m)		
                                 Z = STOU(A_estimated[current_id],c,arch,N-m_test*a_val,m_test-1,m,a_val,p,h_t)
