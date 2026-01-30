@@ -1,4 +1,6 @@
+#from params_old import *
 from params import *
+from matplotlib.lines import Line2D
 import h5py
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
@@ -10,7 +12,7 @@ use_different_eps=False
 from datetime import datetime
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]='2'#,2,3' # on cuda I have to put 0
+os.environ["CUDA_VISIBLE_DEVICES"]='3'#,2,3' # on cuda I have to put 0
 from scipy.stats import kstest as kstest
 import jax
 import jax.numpy as jnp
@@ -34,7 +36,7 @@ figure_name=""#"depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
 
 
 a_val=[3,3]
-a_val = [8,8]
+#a_val = [8,8]
 #[p]
 
 delta=0.025
@@ -86,8 +88,8 @@ for current_id in range(len(datasetsM)):
   
   alph=.5/A_estimatedM[current_id]
       
-  for i,arch in enumerate((archs)):#reversed  
-        Nepochs = epochs[i]    
+  for i_arch,arch in enumerate((archs)):#reversed  
+        Nepochs = epochs[i_arch]    
         Epochs = range(1,Nepochs+1)
         #fJ=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i])+'.txt','w')
         #fJ.write('Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & CRPS & RMSE & rho[Lip(h)] at best Iter train. \n\n')
@@ -95,7 +97,7 @@ for current_id in range(len(datasetsM)):
 
 
         mask=mask_gen(inp,arch)
-        d=dimComp([inp,*archs[i]])
+        d=dimComp([inp,*archs[i_arch]])
         best_prior = 0
         best_crps_val = np.inf
         corr_crps_test = np.inf
@@ -139,7 +141,7 @@ for current_id in range(len(datasetsM)):
                 except OSError as e:
                     print(path_and_file_name," FEHLER")
                     continue
-                f_epochs=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i])+'_pir'+str(pir)+'.txt','w')
+                f_epochs=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i_arch])+'_pir'+str(pir)+'.txt','w')
                 f_epochs.write('Epoch & Train Err. & Test Err. & KL & rho[Lip(h)]\n\n')  
 
                 for Epoch in Epochs:
@@ -258,7 +260,89 @@ for current_id in range(len(datasetsM)):
                     rmse.append(rmse_coord)
                   
                 qs=[.025,.05,.1,.15,.2,.25,.3,.35,.4,.45]#np.linspace(0.05,.45,10)##np.linspace(0.05,.45,10)
-                qs_label=['5%','10%','20%','30%','40%','50%','60%','70%','80%','90%']#print(crps)
+                qs_label=['10%','20%','30%','40%','50%','60%','70%','80%','90%','95%']#print(crps)
+                  
+                
+                    
+                
+                """
+                plt.figure()
+
+                cmap = plt.cm.PuBu  # define the colormap
+                # extract all colors from the .jet map
+                cmaplist = [cmap(i) for i in range(cmap.N)]
+                #print(len(cmaplist))#
+                  # force the first color entry to be grey
+                #cmaplist[0] = (.5, .5, .5, 1.0)
+                
+                # create the new map
+                #cmap = mpl.colors.LinearSegmentedColormap.from_list(
+                #    'Custom cmap', cmaplist, cmap.N)
+                #plt.figure(figsize=(16,20))                  
+                
+                  
+                fig1, axs1 = plt.subplots(4, 2,figsize=(8,6))
+                #plt.subplots_adjust(hspace=0)
+                fig1.tight_layout()
+              
+                for i_ax, ax in enumerate(fig1.axes):
+                  #ax.set_ylabel(str(i))
+                  for j,el in enumerate(qs):
+                    #ax.set_ylim(-1.5,1.5)
+                    ax.fill_between(np.arange(1,m_e_f_test[:,:,:Ncrps].shape[-1]+1),np.quantile(m_e_f_test[i_ax,:,:Ncrps],q=el,axis=0),np.quantile(m_e_f_test[i_ax,:,:Ncrps],q=1-el,axis=0),color=cmaplist[60+15*(j+1)])#,color='teal')
+                    ax.plot(np.arange(1,b_test[:,:Ncrps].shape[-1]+1),b_test[i_ax,:Ncrps],color='orange',linewidth=.5)
+                    
+                  #ax.annotate('average crps: '+ str(np.round(np.mean(crps[2*i],axis=0),decimals=4)) ,xy=(30,np.amax(np.quantile(m_e_f[2*i,:,:],q=.975,axis=0))-.01),fontsize='x-small')
+                
+                
+                custom_lines = [Line2D([0], [0],marker='s', color=cmaplist[60+15*(0+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(1+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(2+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(3+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(4+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(5+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(6+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(7+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(8+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(9+1)], lw=8),
+                                ]
+                fig1.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
+#plt.colorbar(cmaplist[-1:-20*(j+1):-20])
+                plt.savefig(pathF+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.png',bbox_inches='tight')
+                plt.savefig(pathF+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.eps',bbox_inches='tight')
+                plt.close()
+
+                plt.figure()
+                fig2, axs2 = plt.subplots(2, 2,figsize=(12,9))
+                #plt.subplots_adjust(hspace=0)
+                fig2.tight_layout()
+
+                for i_, ax in enumerate(fig2.axes):
+                  #ax.set_ylabel(str(i))
+                  for j,el in enumerate(qs):
+                    ax.fill_between(np.arange(1,m_e_f_test.shape[0]+1),np.quantile(m_e_f_test[:,:,2*i_],q=el,axis=1),np.quantile(m_e_f_test[:,:,2*i_],q=1-el,axis=1),color=cmaplist[60+15*(j+1)])#,color='teal')
+                    ax.plot(np.arange(1,b_test.shape[0]+1),b_test[:,2*i_],color='orange',linewidth=.5)
+                    
+                  #ax.annotate('average crps: '+ str(np.round(np.mean(crps[2*i],axis=0),decimals=4)) ,xy=(30,np.amax(np.quantile(m_e_f[2*i,:,:],q=.975,axis=0))-.01),fontsize='x-small')
+                
+                
+                custom_lines = [Line2D([0], [0],marker='s', color=cmaplist[60+15*(0+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(1+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(2+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(3+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(4+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(5+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(6+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(7+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(8+1)], lw=8),
+                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(9+1)], lw=8),
+                                ]
+                fig2.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
+#plt.colorbar(cmaplist[-1:-20*(j+1):-20])
+                plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.png',bbox_inches='tight')
+                plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.eps',bbox_inches='tight')
+
+                plt.close()
                   
                 #print(pir,'&',np.round(KL,decimals=4),'&',np.round(pac_test_min,decimals=4),'&' , np.round(pac_true_min,decimals=4),'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.sqrt(np.mean(rmse)),decimals=4), file=fTest)    #'&',np.round(emp_risk,decimals=4)
 
@@ -267,6 +351,7 @@ for current_id in range(len(datasetsM)):
                      corr_rmse_test = np.mean(rmse)
 
                 #########
+              """
 
 
               """
