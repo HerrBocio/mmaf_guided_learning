@@ -1,5 +1,5 @@
 #from params_old import *
-from params import *
+from NN_2D.params_a8 import *
 from matplotlib.lines import Line2D
 import h5py
 from scipy.io import loadmat

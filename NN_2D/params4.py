@@ -1,4 +1,4 @@
-from params import *
+from NN_2D.params_a8 import *
 
 datasetsM = [datasetsM[1]]
 datasetsname_short = [datasetsname_short[1]]
