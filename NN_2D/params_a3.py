@@ -1,16 +1,14 @@
-a_val=[3,3]
-a_val = [8,8]
-epochs = [80,200]
-if a_val[0]== 3:
-    epochs = [20, 60]
-#epochs = [700]
+my_aval=[3,3]
+#epochs_3 = [20, 60]
+epochs_3 = [80, 200]
+
 delta=.025
 inp=3
 h_t=[1]
 archs=[[10,10,1],[10,10,10,10,10,1]]
-if len(epochs) != len(archs):
+if len(epochs_3) != len(archs):
     print("Epochs and archs have to have the same length.")
-    epochs = epochs[:len(archs)]
+    epochs = epochs_3[:len(archs)]
 datasetsM= ['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']#
 datasetsname_short= ['Gau','NIG']#
 m_batches=1000 
@@ -31,3 +29,8 @@ path="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/"
 #day = "final_different_a"
 #day = "final_"
 day = "2901"
+
+do_f_epochs = False
+save_eps = False
+piRescaling=list(range(10,230,20))
+piRescaling=list(range(10,50,20))

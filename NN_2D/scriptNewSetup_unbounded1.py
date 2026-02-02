@@ -42,7 +42,9 @@ eps=3.
 p=1
 
 lambda_=[]
-#a_val=[8,8]
+
+a_val=[8,8]
+"""
 a_val =[]
 
 
@@ -58,7 +60,7 @@ for i in range(len(datasetsM)):
   a_val.append(int( a) )
 
 print('a val',a_val,lambda_)
-
+"""
 
 center_pixel=5
 
