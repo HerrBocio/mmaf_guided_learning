@@ -17,7 +17,7 @@ p=1
 c=1
 Ndraws=1000          
 
-folder_day = "OLR_new_archs_"
+folder_day = "0202_"
 
 pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/tables/" #'results/s_data/tables/'
 pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'results/s_data/figures/'
@@ -25,5 +25,6 @@ pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'re
 
 #path='/LOCAL/prol/s_data/'#nobias/'
 path="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/"
-day = "2901"
+pathsave="/afs/tu-chemnitz.de/project/mmaf_unbounded/"+folder_day+"results/"
+day = "0202"
 piScalingLabel=list(range(10,230,20))

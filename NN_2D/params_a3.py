@@ -33,4 +33,4 @@ day = "2901"
 do_f_epochs = False
 save_eps = False
 piRescaling=list(range(10,230,20))
-piRescaling=list(range(10,50,20))
+#piRescaling=list(range(10,50,20))

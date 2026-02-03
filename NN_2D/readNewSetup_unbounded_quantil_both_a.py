@@ -108,7 +108,7 @@ for current_id in range(len(datasetsM)):
 
       mask=mask_gen(inp,arch)
       d=dimComp([inp,*archs[i_arch]])
-      best_prior = 0
+      best_prior = 10
       best_crps_val = np.inf
       corr_crps_test = np.inf
       range_crps_val = []
@@ -242,7 +242,9 @@ for current_id in range(len(datasetsM)):
 
               if np.mean(crps)<best_crps_val:
                     best_crps_val = np.mean(crps)
+                    print("updated best prior from ",best_prior)
                     best_prior = pir
+                    print("...to ",best_prior)
                     best_prior_best_train_error = best_whole_bound_train
                     best_prior_iter_train = best_iter_train
                     best_prior_best_test_error = best_whole_bound_test
@@ -366,6 +368,7 @@ for current_id in range(len(datasetsM)):
               #########
       
       if only_plot_best_pir:
+          print(datasetsname_short[current_id], a_val, arch, best_prior) # 0 wenn best_prior nie geändert wird (warum??)
           
           """
           data_test=np.array(m_g.get('data_test'))
