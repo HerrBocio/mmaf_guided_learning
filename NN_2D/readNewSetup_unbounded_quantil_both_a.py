@@ -38,7 +38,7 @@ figure_name=""#"depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
 
 
 a_vals = [my_aval,their_aval]
-epochs = [epochs_3, epochs_8]
+epochs = [epochs, epochs]
 #a_val = [8,8]
 #[p]
 
@@ -70,21 +70,22 @@ if not os.path.exists(pathF):
 #fTest_best_pir=open(pathT+'Table_All_Comb_Best_Pir.txt','w')
 #fTest_best_pir.write('Dataset & Architecture & best Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & Validation CRPS & RMSE Val & Range CRPS_Val other prior & Test CRPS & Test RMSE\n\n')
 fVal = open(pathT+ "Validation_table.txt",'w')
-fVal.write('Dataset & Architecture'+piRescaling_str_val+'\n\n')
+fVal.write('Dataset & a & Architecture'+piRescaling_str_val+'\n\n')
 
-fTest = open(pathT+ "Test_table.txt",'w')
-fTest.write('Dataset & Architecture & Pi & KL & rho[Lip(h)] & Bound & CRPS & RMSE'+'\n\n')
+#fTest = open(pathT+ "Test_table.txt",'w')
+#fTest.write('Dataset & a & Architecture & Pi & KL & rho[Lip(h)] & Bound & CRPS & RMSE'+'\n\n')
 
 fMMAF = open(pathT+"MMAF_Table.txt",'w')
-fMMAF.write("Dataset & Arch & Best Pir & m & KL& rho[Lip(h)] & rho[r(h)] & bound Train & Horizon_val & CRPS_Val & RMSE_Val & Horizon_test & CRPS_Test & RMSE_ test\n\n")
+fMMAF.write("Dataset & a & Arch & Best Pir & m & KL& rho[Lip(h)] & rho[r(h)] & bound Train & Horizon_val & CRPS_Val & RMSE_Val & Horizon_test & CRPS_Test & RMSE_ test\n\n")
 
 fTrain = open(pathT+"Train_Table.txt",'w')
-fTrain.write('Dataset & Architecture'+piRescaling_str_train+'\n\n')
+fTrain.write('Dataset & a & Architecture'+piRescaling_str_train+'\n\n')
 
 
 for current_id in range(len(datasetsM)):
-  print('\\multirow{4}{2em}{',datasetsname_short[current_id],'}& ', file=fTrain)
-  print('\\multirow{4}{2em}{',datasetsname_short[current_id],'}& ', file=fVal)
+  print('\\multirow{10}{5em}{',datasetsname_short[current_id],'}& ', file=fTrain)
+  print('\\multirow{10}{5em}{',datasetsname_short[current_id],'}& ', file=fVal)
+  print('\\multirow{10}{5em}{',datasetsname_short[current_id],'}& ', file=fMMAF)
   print(datasetsname_short[current_id], file=fMMAF)
   data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
   
@@ -93,12 +94,14 @@ for current_id in range(len(datasetsM)):
   for i_aval,a_val in enumerate(a_vals):
     data_validation=data[:Ncoords,-(Ncones_test)*a_val[current_id]:-(Ncones_test-1)*a_val[current_id]]
     b_validation=data_validation[:,-1]
-    print('\\multirow{2}{*}{$',a_val[current_id],'$ $\\Bigg\\{$} ', file=fTrain)
-    print('\\multirow{2}{*}{$',a_val[current_id],'$ $\\Bigg\\{$} ', file=fVal)
+    print('\\multirow{5}{*}{$',a_val[current_id],'$ $\\Bigg\\{$} ', file=fTrain)
+    print('\\multirow{5}{*}{$',a_val[current_id],'$ $\\Bigg\\{$} ', file=fVal)
+    print('\\multirow{5}{*}{$',a_val[current_id],'$ $\\Bigg\\{$} ', file=fMMAF)
     for i_arch,arch in enumerate((archs)):#reversed 
       if i_arch != 0:
           print('& ', file=fTrain) 
           print('& ', file=fVal) 
+          print('& ', file=fMMAF) 
       Nepochs = epochs[i_aval][i_arch]   
       Epochs = range(1,Nepochs+1)
       #fJ=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i])+'.txt','w')
@@ -320,7 +323,9 @@ for current_id in range(len(datasetsM)):
                                 ]
                 fig1.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
       #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
-                path_spec = pathF_all + '/'+datasetsname_short[current_id]+'/'+'a='+str(a_val[current_id])+'/'+str(arch)+'/'
+                path_spec = pathF_all +datasetsname_short[current_id]+'/'+'a='+str(a_val[current_id])+'/'+str(arch)+'/'
+                if not os.path.exists(path_spec):
+                  os.makedirs(path_spec)
                 plt.savefig(path_spec+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.png',bbox_inches='tight')
                 if save_eps:
                   plt.savefig(pathF+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.eps',bbox_inches='tight')
@@ -488,8 +493,10 @@ for current_id in range(len(datasetsM)):
       #print("printing done for ",datasetsname_short[current_id],arch[i_arch])
     print('\n\\cmidrule{3-25}\n',file=fTrain)
     print('\n\\cmidrule{3-25}\n',file=fVal)
+    print('\n\\cmidrule{3-25}\n',file=fMMAF)
   print('midrule\nmidrule\n', file=fTrain)
   print('midrule\nmidrule\n', file=fVal)
+  print('midrule\nmidrule\n', file=fMMAF)
 
 
             

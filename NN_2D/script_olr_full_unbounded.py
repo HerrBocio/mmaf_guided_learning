@@ -303,8 +303,6 @@ for l_,boolean in enumerate(pretraining):
                 print(m_test)
 
                 for k,pir in enumerate(piRescaling):
-                                if i == 0 and k < 4:
-                                       continue
                                 print('prior=',piScalingLabel[k])
                                 pathPrior=pathsave+'prior'+str(piScalingLabel[k])+'var/'
                                 if not os.path.exists(pathPrior):
