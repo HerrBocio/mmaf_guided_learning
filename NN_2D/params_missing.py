@@ -1,14 +1,13 @@
-my_aval=[3,3]
-#epochs_3 = [20, 60]
-epochs_3 = [80, 200,80,130,200]
+
+epochs = [200]
 
 delta=.025
 inp=3
 h_t=[1]
-archs=[[10,10,1],[10,10,10,10,10,1],[30,30,1],[100,100,1],[300,300,1]]
-if len(epochs_3) != len(archs):
+archs=[[300,300,1]]
+if len(epochs) != len(archs):
     print("Epochs and archs have to have the same length.")
-    epochs = epochs_3[:len(archs)]
+    epochs = epochs[:len(archs)]
 datasetsM= ['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']#
 datasetsname_short= ['Gau','NIG']#
 m_batches=1000 
@@ -18,11 +17,10 @@ Ndraws=1000
 
 #folder_day = "2201final_different_a_"
 #folder_day="1501final_"
-folder_day ="0202"
+folder_day ="2901"
 
 pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/tables/" #'results/s_data/tables/'
 pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'results/s_data/figures/'
-pathF_all="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/all_figures/" #'results/s_data/figures/'
 #path='/afs/tu-chemnitz.de/project/calibration/paper_simulations/m_wise_epoch_wise/'
 
 #path='/LOCAL/prol/s_data/'#nobias/'
@@ -34,4 +32,3 @@ day = "2901"
 do_f_epochs = False
 save_eps = False
 piRescaling=list(range(10,230,20))
-#piRescaling=list(range(10,50,20))

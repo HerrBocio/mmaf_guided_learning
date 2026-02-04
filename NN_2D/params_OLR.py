@@ -4,8 +4,8 @@ import netCDF4 as nc
 delta=.025
 inp=3
 h_t=[1]
-archs=[[10,10,1],[10,10,10,10,10,1]]
-epochs = [15000,45000]
+archs=[[30,30,1],[100,100,1],[300,300,1]]
+epochs = [30000,45000,90000]
 
 
 file_path = '/afs/tu-chemnitz.de/project/calibration/OLR_full.nc'#Almut_plusFuture.nc'

@@ -108,7 +108,7 @@ for current_id in range(len(datasetsM)):
 
       mask=mask_gen(inp,arch)
       d=dimComp([inp,*archs[i_arch]])
-      best_prior = 10
+      best_prior = 0
       best_crps_val = np.inf
       corr_crps_test = np.inf
       range_crps_val = []
@@ -123,7 +123,7 @@ for current_id in range(len(datasetsM)):
             piScale=jnp.ones(d)*log_pir
             piParams=[jnp.zeros(d),piScale]
 
-            print("pir, arch, dataset: ",pir,arch,datasetsM[current_id])
+            print("a, pir, arch, dataset: ",a_val[current_id],pir,arch,datasetsM[current_id])
 
             empirical_obj=np.array([])
             pac_obj=np.array([])
@@ -277,7 +277,7 @@ for current_id in range(len(datasetsM)):
               qs=[.025,.05,.1,.15,.2,.25,.3,.35,.4,.45]#np.linspace(0.05,.45,10)##np.linspace(0.05,.45,10)
               qs_label=['10%','20%','30%','40%','50%','60%','70%','80%','90%','95%']#print(crps)
                 
-              if not only_plot_best_pir:
+              if True:#not only_plot_best_pir:
                 plt.figure()
 
                 cmap = plt.cm.PuBu  # define the colormap
@@ -320,7 +320,8 @@ for current_id in range(len(datasetsM)):
                                 ]
                 fig1.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
       #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
-                plt.savefig(pathF+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.png',bbox_inches='tight')
+                path_spec = pathF_all + '/'+datasetsname_short[current_id]+'/'+'a='+str(a_val[current_id])+'/'+str(arch)+'/'
+                plt.savefig(path_spec+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.png',bbox_inches='tight')
                 if save_eps:
                   plt.savefig(pathF+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.eps',bbox_inches='tight')
                 plt.close()
@@ -368,7 +369,7 @@ for current_id in range(len(datasetsM)):
               #########
       
       if only_plot_best_pir:
-          print(datasetsname_short[current_id], a_val, arch, best_prior) # 0 wenn best_prior nie geändert wird (warum??)
+          print(datasetsname_short[current_id], a_val[current_id], arch, best_prior) # 0 wenn best_prior nie geändert wird (warum??)
           
           """
           data_test=np.array(m_g.get('data_test'))
@@ -434,9 +435,9 @@ for current_id in range(len(datasetsM)):
                           ]
           fig1.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
 #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
-          plt.savefig(pathF+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(best_prior)+'.png',bbox_inches='tight')
+          plt.savefig(pathF+'time_EF'+figure_name+str(arch) +'_' +str(datasetsname_short[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.png',bbox_inches='tight')
           if save_eps:
-            plt.savefig(pathF+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(best_prior)+'.eps',bbox_inches='tight')
+            plt.savefig(pathF+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.eps',bbox_inches='tight')
           plt.close()
 
           plt.figure()
@@ -466,9 +467,9 @@ for current_id in range(len(datasetsM)):
                           ]
           fig2.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
 #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
-          plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(best_prior)+'.png',bbox_inches='tight')
+          plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsname_short[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.png',bbox_inches='tight')
           if save_eps:
-            plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(best_prior)+'.eps',bbox_inches='tight')
+            plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.eps',bbox_inches='tight')
 
           plt.close()
       

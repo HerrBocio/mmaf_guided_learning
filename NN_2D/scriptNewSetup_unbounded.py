@@ -5,7 +5,7 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
 from STOU import STOU
-from params import *
+from params_missing import *
 from SGE_unbounded import Optimization
 from utils import *
 import numpy as np
@@ -18,7 +18,7 @@ data_path="../datasets_2D/" #/LOCAL/prol/
 #data_path="datasets_2D/" #/LOCAL/prol/
 
 os.makedirs('/LOCAL/jasst/results', exist_ok=True)
-path='/LOCAL/jasst/results/'
+#path='/LOCAL/jasst/results/'
 #path='/afs/tu-chemnitz.de/project/calibration/debug/'
 
 
