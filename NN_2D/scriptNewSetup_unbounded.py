@@ -65,8 +65,10 @@ center_pixel=5
 shard_size= [8] #[8,2,1]#,2,8]#,1]#,33]#99,?
 
 #sets the variance of the reference distribution 
-piScalingLabel=list(range(10,230,20))
-piRescaling=[1./10, 1./30, 1./50, 1./70, 1./90,1./110, 1./130, 1./150, 1./170, 1./190, 1./210] #   
+#piScalingLabel=list(range(10,230,20))
+piScalingLabel=[210]
+piRescaling=[1./210] #   
+#piRescaling=[1./10, 1./30, 1./50, 1./70, 1./90,1./110, 1./130, 1./150, 1./170, 1./190, 1./210] #   
 piRescaling= np.log(piRescaling)
 print(piRescaling)
 

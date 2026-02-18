@@ -314,7 +314,7 @@ for l_,boolean in enumerate(pretraining):
                                 print('m=',m)		
                                 Z = STOU(A_estimated[current_id],c,arch,N-m_test*a_val,m_test-1,m,a_val,p,h_t)
 		
-                                Optimization(file_m,Z,x_size,boolean,rescaling,eps,delta,OLR,inp,p,c,arch,dimComp([inp,*arch]),Ndraws,m,m_test,Ncoords,shard_size[i], lr,  epochs=Epoch, piScaling=pir)
+                                Optimization(file_m,Z,x_size,boolean,rescaling,eps,delta,OLR,inp,p,c,arch,dimComp([inp,*arch]),Ndraws,m,m_test,Ncoords,shard_size[0], lr,  epochs=Epoch, piScaling=pir)
                                 
                                 file_.close()
 

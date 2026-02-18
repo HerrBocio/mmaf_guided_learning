@@ -4,8 +4,10 @@ import os
 delta=.025
 inp=3
 h_t=[1]
-archs=[[30,30,1],[100,100,1],[300,300,1],[10,10,10,10,10,1]]
-epochs = [30000,45000,90000,45000]
+#archs=[[30,30,1],[100,100,1],[300,300,1],[10,10,10,10,10,1]]
+archs=[[300,300,1]]
+#epochs = [30000,45000,90000,45000]
+epochs = [90000]
 
 
 file_path = '/afs/tu-chemnitz.de/project/calibration/OLR_full.nc'#Almut_plusFuture.nc'
@@ -26,7 +28,7 @@ pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'re
 #path='/LOCAL/prol/s_data/'#nobias/'
 path="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/"
 os.makedirs('/LOCAL/jasst/results', exist_ok=True)
-pathsave='/LOCAL/jasst/missing_arch_results/'
+pathsave='/LOCAL/jasst/10hoch5_results/'
 #pathsave="/afs/tu-chemnitz.de/project/mmaf_unbounded/"+folder_day+"results/"
 day = "0202"
 piScalingLabel=list(range(10,230,20))

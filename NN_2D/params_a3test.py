@@ -1,15 +1,15 @@
 my_aval=[3,3]
 #epochs_3 = [20, 60]
-epochs = [80,80,130,200 ,200]
+epochs = [80]
 
 delta=.025
 inp=3
 h_t=[1]
-archs=[[10,10,1],[30,30,1],[100,100,1],[300,300,1],[10,10,10,10,10,1]]
+archs=[[10,10,1]]
 if len(epochs) != len(archs):
     print("Epochs and archs have to have the same length.")
     epochs = epochs[:len(archs)]
-datasetsM= ['Gaudiamonddata1A4mln','NIGdiamonddata1A4mln']#
+datasetsM= ['Gaudiamonddata1A4mln']#
 datasetsname_short= ['Gau','NIG']#
 m_batches=1000 
 p=1
@@ -33,5 +33,6 @@ day = "2901"
 
 do_f_epochs = False
 save_eps = True
+save_eps = False
 piRescaling=list(range(10,230,20))
 #piRescaling=list(range(10,50,20))

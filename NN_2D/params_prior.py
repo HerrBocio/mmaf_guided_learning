@@ -1,4 +1,5 @@
 my_aval=[3,3]
+their_aval = [8,8]
 #epochs_3 = [20, 60]
 epochs = [80,80,130,200 ,200]
 
@@ -18,7 +19,7 @@ Ndraws=1000
 
 #folder_day = "2201final_different_a_"
 #folder_day="1501final_"
-folder_day ="0202"
+folder_day ="PRIORS"
 
 pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/tables/" #'results/s_data/tables/'
 pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'results/s_data/figures/'

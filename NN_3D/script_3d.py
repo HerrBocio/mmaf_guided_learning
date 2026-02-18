@@ -237,7 +237,7 @@ for l_,boolean in enumerate(pretraining):
             #file_pir=file_data.create_group('pir'+str(pir))
             #print(file_pir.keys())
             Z = STOU(0,data,lambda_estimated[current_id],c_estimated[current_id],arch,N,m_test-1,m,a_val,p,h_t=0.05)
-            Optimization(file_m,Z,boolean,rescaling,eps,delta,data,inp,p,c_estimated[current_id],arch,dim([inp,*arch]),Ndraws,m,m_test,Ncoords,shard_size[i], lr, rhoScaling, epochs=Epoch, piScaling=pir)
+            Optimization(file_m,Z,boolean,rescaling,eps,delta,data,inp,p,c_estimated[current_id],arch,dim([inp,*arch]),Ndraws,m,m_test,Ncoords,shard_size[0], lr, rhoScaling, epochs=Epoch, piScaling=pir)
                 
             file_.close()
 
