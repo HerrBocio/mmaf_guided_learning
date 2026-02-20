@@ -21,7 +21,7 @@ data_path="../datasets_2D/" # server
 "#/LOCAL/jasst/results/nopreT/"#'/afs/tu-chemnitz.de/project/calibration/jasminDebug/'
 
 
-only_plot_best_pir = False
+only_plot_best_pir = True
 #
 #path='/afs/tu-chemnitz.de/project/calibration/aistatsResults/s_data_old/'
 #path='/afs/tu-chemnitz.de/project/calibration/s_data_new/'
@@ -158,7 +158,8 @@ for current_id in range(len(datasetsM)):
               m_e_f_validation=np.zeros((0,Ndraws,1))
               rng=jax.random.key(Nepochs)
               for n1 in range(p*c,data_validation.shape[0]-p*c):
-                  coord_e_f=multi_ef_validation(data_validation[n1-p*c:n1+p*c+1,-2],prior_params[n1-p*c,:,:],inp,arch,mask,Ndraws,1,rng)
+                  #coord_e_f=multi_ef_validation(data_validation[n1-p*c:n1+p*c+1,-2],prior_params[n1-p*c,:,:],inp,arch,mask,Ndraws,1,rng)
+                  coord_e_f=multi_ef_validation(data_validation[n1-p*c:n1+p*c+1,-2],prior_params,inp,arch,mask,Ndraws,1,rng)
                   m_e_f_validation=np.vstack([m_e_f_validation,coord_e_f.reshape((1,*coord_e_f.shape))])
               crps=[]
               rmse=[]
@@ -186,13 +187,14 @@ for current_id in range(len(datasetsM)):
               ########
               m_g=hf.get('m'+str(m_batches[m]))
               b_g=m_g.get('min')
-              best_iter_train = np.array(b_g.get('min iteration'))
+              best_iter_train = np.array(b_g.get('min iteration_sup'))
               e_g=m_g.get('epoch'+str(best_iter_train))
               data_test=np.array(m_g.get('data_test'))
               b_test=np.array(e_g.get('cones_test'))
               m_e_f_test=np.zeros((0,Ndraws,Ncones_test-1))
               for j in range(p*c,data_test.shape[0]-p*c):
-                  coord_e_f=multi_ef_test(data_test[j-p*c:j+p*c+1,-(Ncones_test-1)*a_val[current_id]-2::a_val[current_id]],prior_params[j-p*c,:,:],inp,arch,mask,Ndraws,Ncones_test-1,rng)
+                  #coord_e_f=multi_ef_test(data_test[j-p*c:j+p*c+1,-(Ncones_test-1)*a_val[current_id]-2::a_val[current_id]],prior_params[j-p*c,:,:],inp,arch,mask,Ndraws,Ncones_test-1,rng)
+                  coord_e_f=multi_ef_test(data_test[j-p*c:j+p*c+1,-(Ncones_test-1)*a_val[current_id]-2::a_val[current_id]],prior_params,inp,arch,mask,Ndraws,Ncones_test-1,rng)
                   m_e_f_test=np.vstack([m_e_f_test,coord_e_f.reshape((1,*coord_e_f.shape))])
               crps=[]
               rmse=[]
@@ -288,6 +290,8 @@ for current_id in range(len(datasetsM)):
                 fig2.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
       #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
                 pathFspace = pathF+ "space/"
+                if not os.path.exists(pathFspace):
+                  os.makedirs(pathFspace)
                 plt.savefig(pathFspace+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.png',bbox_inches='tight')
                 if save_eps:
                   plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.eps',bbox_inches='tight')
@@ -348,6 +352,8 @@ for current_id in range(len(datasetsM)):
           fig1.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
 #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
           pathFtime = pathF + "time/"
+          if not os.path.exists(pathFtime):
+                  os.makedirs(pathFtime)
           plt.savefig(pathFtime+'time_EF'+figure_name+str(arch) +'_' +str(datasetsname_short[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.png',bbox_inches='tight')
           if save_eps:
             plt.savefig(pathFtime+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.eps',bbox_inches='tight')

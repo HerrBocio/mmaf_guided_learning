@@ -5,7 +5,7 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
 from STOU import STOU
-from params_missing import *
+from params import *
 from SGE_unbounded import Optimization
 from utils import *
 import numpy as np
@@ -17,7 +17,7 @@ from scipy.io import loadmat
 data_path="../datasets_2D/" #/LOCAL/prol/
 #data_path="datasets_2D/" #/LOCAL/prol/
 
-os.makedirs('/LOCAL/jasst/results', exist_ok=True)
+os.makedirs('/LOCAL/jasst/2002results', exist_ok=True)
 #path='/LOCAL/jasst/results/'
 #path='/afs/tu-chemnitz.de/project/calibration/debug/'
 
@@ -42,12 +42,12 @@ eps=3.
 p=1
 
 lambda_=[]
-a_val=[8,8]
+a_val=[]
 
-"""
+
 #lambda_ estimation
 for i in range(len(datasetsM)):
-  l=A_estimatedM[i] * np.minimum(2.0, c_estimatedM[i]) / (2*c_estimatedM[i])
+  l=A_estimatedM[i]
   print("lambda: ",l)
   lambda_.append(l)
   a= np.ceil(jnp.log(m_batches)/(2*l)+p)
@@ -57,7 +57,7 @@ for i in range(len(datasetsM)):
   a_val.append(int( a) )
 
 print('a val',a_val,lambda_)
-"""
+
 
 center_pixel=5
 
@@ -94,7 +94,7 @@ for i,arch in enumerate(archs): # reversed
       #loops over reference distributions
       print('prior=',pir)
       #jax.debug.print("STRING ARCH {}", str(arch))
-      pathPrior=path+'prior'+str(piScalingLabel[k])+'var/'
+      pathPrior=pathsave+'prior'+str(piScalingLabel[k])+'var/'
       create_folder(pathPrior)
       #jax.debug.print(pathPrior+day+filename+pretraining_labels +str(arch)+'_' +str(datasetsM[current_id])[:3] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5')
       file_ = h5py.File(pathPrior+day+filename+str(arch)+'_' +str(datasetsM[current_id])[:3] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5','w')

@@ -19,11 +19,11 @@ Ndraws=1000
 
 #folder_day = "2201final_different_a_"
 #folder_day="1501final_"
-folder_day ="PRIORS"
+folder_day ="0202"
 
-pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/tables/" #'results/s_data/tables/'
-pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'results/s_data/figures/'
-pathF_all="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/all_figures/" #'results/s_data/figures/'
+pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"PRIORresults/tables/" #'results/s_data/tables/'
+pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"PRIORresults/figures/" #'results/s_data/figures/'
+pathF_all="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"PRIORresults/all_figures/" #'results/s_data/figures/'
 #path='/afs/tu-chemnitz.de/project/calibration/paper_simulations/m_wise_epoch_wise/'
 
 #path='/LOCAL/prol/s_data/'#nobias/'
@@ -33,6 +33,6 @@ path="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/"
 day = "2901"
 
 do_f_epochs = False
-save_eps = True
+save_eps = False
 piRescaling=list(range(10,230,20))
 #piRescaling=list(range(10,50,20))
