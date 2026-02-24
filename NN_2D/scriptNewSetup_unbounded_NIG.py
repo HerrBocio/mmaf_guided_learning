@@ -5,7 +5,7 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
 from STOU import STOU
-from params import *
+from params_NIG import *
 from SGE_unbounded import Optimization
 from utils import *
 import numpy as np

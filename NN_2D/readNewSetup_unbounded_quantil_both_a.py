@@ -1,5 +1,4 @@
-from params_a3test import *
-from params_a8 import *
+from params import *
 from matplotlib.lines import Line2D
 import h5py
 from scipy.io import loadmat
@@ -22,7 +21,7 @@ data_path="../datasets_2D/" # server
 "#/LOCAL/jasst/results/nopreT/"#'/afs/tu-chemnitz.de/project/calibration/jasminDebug/'
 
 
-only_plot_best_pir = False
+only_plot_best_pir = True
 #
 #path='/afs/tu-chemnitz.de/project/calibration/aistatsResults/s_data_old/'
 #path='/afs/tu-chemnitz.de/project/calibration/s_data_new/'
@@ -37,8 +36,8 @@ file_name= day#day+'_full_relu_std'+preTlabel#full_tanh_new_setup,full_relu_new_
 figure_name=""#"depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
 
 
-a_vals = [my_aval,their_aval]
-epochs = [epochs, epochs]
+a_vals = [[2,2]]
+epochs = [epochs]
 #a_val = [8,8]
 #[p]
 
@@ -70,7 +69,7 @@ if not os.path.exists(pathF):
 #fTest_best_pir=open(pathT+'Table_All_Comb_Best_Pir.txt','w')
 #fTest_best_pir.write('Dataset & Architecture & best Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & Validation CRPS & RMSE Val & Range CRPS_Val other prior & Test CRPS & Test RMSE\n\n')
 fVal = open(pathT+ "Validation_table.txt",'w')
-fVal.write('Dataset & a & Architecture'+piRescaling_str_val+'\n\n')
+fVal.write('Dataset & Architecture'+piRescaling_str_val+'\n\n')
 
 #fTest = open(pathT+ "Test_table.txt",'w')
 #fTest.write('Dataset & a & Architecture & Pi & KL & rho[Lip(h)] & Bound & CRPS & RMSE'+'\n\n')
@@ -83,9 +82,9 @@ fTrain.write('Dataset & a & Architecture'+piRescaling_str_train+'\n\n')
 
 
 for current_id in range(len(datasetsM)):
-  print('\\multirow{10}{5em}{',datasetsname_short[current_id],'} ', file=fTrain)
-  print('\\multirow{10}{5em}{',datasetsname_short[current_id],'} ', file=fVal)
-  print('\\multirow{10}{5em}{',datasetsname_short[current_id],'} ', file=fMMAF)
+  print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fTrain)
+  print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fVal)
+  print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fMMAF)
   #print(datasetsname_short[current_id], file=fMMAF)
   data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
   
@@ -94,30 +93,24 @@ for current_id in range(len(datasetsM)):
   for i_aval,a_val in enumerate(a_vals):
     data_validation=data[:Ncoords,-(Ncones_test)*a_val[current_id]:-(Ncones_test-1)*a_val[current_id]]
     b_validation=data_validation[:,-1]
-    print(
-    r'& \multirow{5}{*}{$ '
-    + str(a_val[current_id])
-    + r' \left\{\begin{array}{c} \\ \\ \\ \\ \\ \end{array}\right.$} ',
-    file=fTrain
-    )
-    print(
-    r'& \multirow{5}{*}{$ '
-    + str(a_val[current_id])
-    + r' \left\{\begin{array}{c} \\ \\ \\ \\ \\ \end{array}\right.$} ',
-    file=fVal
-    )
-    print(
-    r'& \multirow{5}{*}{$ '
-    + str(a_val[current_id])
-    + r' \left\{\begin{array}{c} \\ \\ \\ \\ \\ \end{array}\right.$} ',
-    file=fMMAF
-    )
+    # print(
+    # r'& \multirow{5}{*}{ ',
+    # file=fTrain
+    # )
+    # print(
+    # r'& \multirow{5}{*}{ ',
+    # file=fVal
+    # )
+    # print(
+    # r'& \multirow{5}{*}{ ',
+    # file=fMMAF
+    # )
 
     for i_arch,arch in enumerate((archs)):#reversed 
-      if i_arch != 0:
-          print('& ', file=fTrain) 
-          print('& ', file=fVal) 
-          print('& ', file=fMMAF) 
+      # if i_arch != 0:
+      #     print('& ', file=fTrain) 
+      #     print('& ', file=fVal) 
+      #     print('& ', file=fMMAF) 
       Nepochs = epochs[i_aval][i_arch]   
       Epochs = range(1,Nepochs+1)
       #fJ=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i])+'.txt','w')
@@ -339,7 +332,7 @@ for current_id in range(len(datasetsM)):
                                 ]
                 fig1.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
       #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
-                path_spec = pathF_all +datasetsname_short[current_id]+'/'+'a='+str(a_val[current_id])+'/'+str(arch)+'/'
+                path_spec = pathF +datasetsname_short[current_id]+'/'+'a='+str(a_val[current_id])+'/'+str(arch)+'/'
                 if not os.path.exists(path_spec):
                   os.makedirs(path_spec)
                 plt.savefig(path_spec+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.png',bbox_inches='tight')
@@ -375,6 +368,8 @@ for current_id in range(len(datasetsM)):
                 fig2.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
       #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
                 pathFspace = pathF+ "space/"
+                if not os.path.exists(pathFspace):
+                  os.makedirs(pathFspace)
                 plt.savefig(pathFspace+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.png',bbox_inches='tight')
                 if save_eps:
                   plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.eps',bbox_inches='tight')
@@ -421,6 +416,8 @@ for current_id in range(len(datasetsM)):
               plt.legend(['average expected value of Lip(h)'])
               
               pathFconv = pathF + "convergence/"
+              if not os.path.exists(pathFconv):
+                os.makedirs(pathFconv)
               savename = pathFconv+datasetsname_short[current_id]+ 'prior' + str(pir)+folder_day+str(arch)+figure_name +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png'.replace("/","-")
               plt.savefig(savename)
               plt.close()
@@ -493,6 +490,8 @@ for current_id in range(len(datasetsM)):
           fig1.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
 #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
           pathFtime = pathF + "time/"
+          if not os.path.exists(pathFtime):
+                os.makedirs(pathFtime)
           plt.savefig(pathFtime+'time_EF'+figure_name+str(arch) +'_' +str(datasetsname_short[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.png',bbox_inches='tight')
           if save_eps:
             plt.savefig(pathFtime+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.eps',bbox_inches='tight')
@@ -544,9 +543,9 @@ for current_id in range(len(datasetsM)):
       print("& $",arch[0],'^',len(arch)-1,'$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  
 
       #print("printing done for ",datasetsname_short[current_id],arch[i_arch])
-    print('\n\\cmidrule{3-25}\n',file=fTrain)
-    print('\n\\cmidrule{3-25}\n',file=fVal)
-    print('\n\\cmidrule{3-25}\n',file=fMMAF)
+    #print('\n\\cmidrule{3-25}\n',file=fTrain)
+    #print('\n\\cmidrule{3-25}\n',file=fVal)
+    #print('\n\\cmidrule{3-25}\n',file=fMMAF)
   print('\\midrule\n\\midrule\n', file=fTrain)
   print('\\midrule\n\\midrule\n', file=fVal)
   print('\\midrule\n\\midrule\n', file=fMMAF)

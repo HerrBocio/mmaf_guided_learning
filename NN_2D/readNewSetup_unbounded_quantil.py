@@ -352,11 +352,11 @@ for current_id in range(len(datasetsM)):
     print(datasetsname_short[current_id],'&',arch,' ',val_prior_row_str,file =fVal)
     #print(datasetsname_short[current_id],'& ',best_prior,'& ',train_prior_row_str,' \\'+'\\'+'\n',file =fTrain)
     print(train_prior_row_str,' \\'+'\\'+'\n',file =fTrain)
-    range_crps_val.sort()
+    #range_crps_val.sort()
     #print(range_crps_val)
-    range_other_prior_str = "["+str(range_crps_val[1])+","+str(range_crps_val[-1])+"]"
+    #range_other_prior_str = "["+str(range_crps_val[1])+","+str(range_crps_val[-1])+"]"
 
-    print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&', best_prior_best_train_error,'&',best_prior_iter_train,'&',best_prior_best_test_error,'&',best_prior_iter_test,'&',best_crps_val,'&',best_rmse_val,'&',range_other_prior_str,'&',corr_crps_test,'&',corr_rmse_test, file = fTest_best_pir)  
+    #print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&', best_prior_best_train_error,'&',best_prior_iter_train,'&',best_prior_best_test_error,'&',best_prior_iter_test,'&',best_crps_val,'&',best_rmse_val,'&',range_other_prior_str,'&',corr_crps_test,'&',corr_rmse_test, file = fTest_best_pir)  
     
     
     print("& $",arch[0],'^',len(arch)-1,'$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  

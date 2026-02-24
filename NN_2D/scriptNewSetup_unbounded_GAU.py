@@ -5,7 +5,7 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
 from STOU import STOU
-from params import *
+from params_GAU import *
 from SGE_unbounded import Optimization
 from utils import *
 import numpy as np
@@ -17,8 +17,8 @@ from scipy.io import loadmat
 data_path="../datasets_2D/" #/LOCAL/prol/
 #data_path="datasets_2D/" #/LOCAL/prol/
 
-os.makedirs('/LOCAL/jasst/results', exist_ok=True)
-path='/LOCAL/jasst/results/'
+os.makedirs('/LOCAL/jasst/2002results', exist_ok=True)
+#path='/LOCAL/jasst/results/'
 #path='/afs/tu-chemnitz.de/project/calibration/debug/'
 
 
@@ -42,13 +42,12 @@ eps=3.
 p=1
 
 lambda_=[]
-#a_val=[8,8]
-a_val =[]
+a_val=[]
 
 
 #lambda_ estimation
 for i in range(len(datasetsM)):
-  l=A_estimatedM[i] * np.minimum(2.0, c_estimatedM[i]) / (2*c_estimatedM[i])
+  l=A_estimatedM[i]
   print("lambda: ",l)
   lambda_.append(l)
   a= np.ceil(jnp.log(m_batches)/(2*l)+p)
@@ -66,7 +65,7 @@ center_pixel=5
 shard_size= [8] #[8,2,1]#,2,8]#,1]#,33]#99,?
 
 #sets the variance of the reference distribution 
-piScalingLabel=list(range(10,230,20))
+piScalingLabel=list(range(10,230,20))  
 piRescaling=[1./10, 1./30, 1./50, 1./70, 1./90,1./110, 1./130, 1./150, 1./170, 1./190, 1./210] #   
 piRescaling= np.log(piRescaling)
 print(piRescaling)
@@ -93,7 +92,7 @@ for i,arch in enumerate(archs): # reversed
       #loops over reference distributions
       print('prior=',pir)
       #jax.debug.print("STRING ARCH {}", str(arch))
-      pathPrior=path+'prior'+str(piScalingLabel[k])+'var/'
+      pathPrior=pathsave+'prior'+str(piScalingLabel[k])+'var/'
       create_folder(pathPrior)
       #jax.debug.print(pathPrior+day+filename+pretraining_labels +str(arch)+'_' +str(datasetsM[current_id])[:3] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5')
       file_ = h5py.File(pathPrior+day+filename+str(arch)+'_' +str(datasetsM[current_id])[:3] +'_a' +str(a_val[current_id]) +'_pir' +str(piScalingLabel[k]) +'_m' +str(m_batches) +'_Epoch_'+str(Epochs)+'.h5','w')
