@@ -5,7 +5,7 @@ os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 #os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
 
 from STOU import STOU
-from params import *
+from params_NIG2 import *
 from SGE_unbounded import Optimization
 from utils import *
 import numpy as np
@@ -28,7 +28,7 @@ os.makedirs('/LOCAL/jasst/2002results', exist_ok=True)
 
 
 ids=[1]
-A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
+A_estimatedM=[3.868912]#,]#,[3.840956]#
 c_estimatedM=[1,1]
 
 m_test= 101

@@ -21,7 +21,8 @@ data_path="../datasets_2D/" # server
 "#/LOCAL/jasst/results/nopreT/"#'/afs/tu-chemnitz.de/project/calibration/jasminDebug/'
 
 
-only_plot_best_pir = True
+do_plots = True
+do_plots = False
 #
 #path='/afs/tu-chemnitz.de/project/calibration/aistatsResults/s_data_old/'
 #path='/afs/tu-chemnitz.de/project/calibration/s_data_new/'
@@ -71,6 +72,9 @@ if not os.path.exists(pathF):
 fVal = open(pathT+ "Validation_table.txt",'w')
 fVal.write('Dataset & Architecture'+piRescaling_str_val+'\n\n')
 
+fValBounds = open(pathT+ "Validated_bounds_table.txt",'w')
+fValBounds.write('Dataset & Architecture & best Prior & Bound on Train & Bound on Test'+'\n\n')
+
 #fTest = open(pathT+ "Test_table.txt",'w')
 #fTest.write('Dataset & a & Architecture & Pi & KL & rho[Lip(h)] & Bound & CRPS & RMSE'+'\n\n')
 
@@ -80,10 +84,15 @@ fMMAF.write("Dataset & a & Arch & Best Pir & m & KL& rho[Lip(h)] & rho[r(h)] & b
 fTrain = open(pathT+"Train_Table.txt",'w')
 fTrain.write('Dataset & a & Architecture'+piRescaling_str_train+'\n\n')
 
+fTestGau =open(pathT+"TestGau_Table.txt",'w')
+fTestNIG =open(pathT+"TestNIG_Table.txt",'w')
+fTestGau.write("Dataset & Arch & bestPirunb & CRPSunb & RMSEunb & bestPirb & CRPSb & RMSEb")
+fTestNIG.write("Dataset & Arch & bestPirunb & CRPSunb & RMSEunb & bestPirb & CRPSb & RMSEb")
 
 for current_id in range(len(datasetsM)):
   print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fTrain)
   print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fVal)
+  print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fValBounds)
   print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fMMAF)
   #print(datasetsname_short[current_id], file=fMMAF)
   data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
@@ -129,6 +138,9 @@ for current_id in range(len(datasetsM)):
 
       val_prior_row_str = " & $"+str(arch[0])+'^'+str(len(arch)-1)+"$ "
       train_prior_row_str =" & $"+str(arch[0])+'^'+str(len(arch)-1)+"$ "
+      print(" & $"+str(arch[0])+'^'+str(len(arch)-1)+"$ ", file = fValBounds)
+
+      bound_string = ""
 
       for pir in piRescaling:
             log_pir=-jnp.log(pir)
@@ -289,7 +301,7 @@ for current_id in range(len(datasetsM)):
               qs=[.025,.05,.1,.15,.2,.25,.3,.35,.4,.45]#np.linspace(0.05,.45,10)##np.linspace(0.05,.45,10)
               qs_label=['10%','20%','30%','40%','50%','60%','70%','80%','90%','95%']#print(crps)
                 
-              if only_plot_best_pir:
+              if do_plots:
                 plt.figure()
 
                 cmap = plt.cm.PuBu  # define the colormap
@@ -384,70 +396,49 @@ for current_id in range(len(datasetsM)):
                     corr_m_e_f_test = m_e_f_test
 
               #########
-              #log entire epochs plots - sup
-              plt.figure(figsize=(12, 10))                  
-              plt.subplot(411)
-              plt.plot(np.arange(1,len(bound_train_sup)+1),np.array(bound_train_sup)+np.array(train_errors),linewidth=1,color='black')
-              plt.yscale("log")
-              plt.xlabel("epochs")
-              plt.ylabel("av. train. error")
-              plt.legend(['av. training error (bound with sup)'])
-              #plt.annotate('bound validation set '+str(bou) ,xy=(0,-0.9),fontsize='x-small')
+              if do_plots:
+            
+                #log entire epochs plots - sup
+                plt.figure(figsize=(12, 10))                  
+                plt.subplot(411)
+                plt.plot(np.arange(1,len(bound_train_sup)+1),np.array(bound_train_sup)+np.array(train_errors),linewidth=1,color='black')
+                plt.yscale("log")
+                plt.xlabel("epochs")
+                plt.ylabel("av. train. error")
+                plt.legend(['av. training error (bound with sup)'])
+                #plt.annotate('bound validation set '+str(bou) ,xy=(0,-0.9),fontsize='x-small')
 
-              plt.subplot(412)
-              plt.plot(np.arange(1,len(bound_test_sup)+1),np.array(bound_test_sup)+np.array(test_errors),linewidth=1,color='blue')
-              plt.yscale("log")
-              plt.xlabel("epochs")
-              plt.ylabel("av. test error")
-              plt.legend(['av. test test error (bound with sup)'])
-              
-              plt.subplot(413)
-              plt.plot(np.arange(1,len(pac_obj)+1),pac_obj+empirical_obj,linewidth=1,color='red')
-              plt.yscale("log")
-              plt.xlabel("iterations")
-              plt.ylabel("obj function value")
-              plt.legend(['av. obj function (using bound with E)'])
+                plt.subplot(412)
+                plt.plot(np.arange(1,len(bound_test_sup)+1),np.array(bound_test_sup)+np.array(test_errors),linewidth=1,color='blue')
+                plt.yscale("log")
+                plt.xlabel("epochs")
+                plt.ylabel("av. test error")
+                plt.legend(['av. test test error (bound with sup)'])
+                
+                plt.subplot(413)
+                plt.plot(np.arange(1,len(pac_obj)+1),pac_obj+empirical_obj,linewidth=1,color='red')
+                plt.yscale("log")
+                plt.xlabel("iterations")
+                plt.ylabel("obj function value")
+                plt.legend(['av. obj function (using bound with E)'])
 
-              plt.subplot(414)
-              plt.plot(np.arange(1,len(Liph_train)+1),Liph_train,linewidth=1,color='red')
-              #plt.yscale("log")
-              plt.xlabel("iterations")
-              plt.ylabel("rho[Lip(h)]")
-              plt.legend(['average expected value of Lip(h)'])
-              
-              pathFconv = pathF + "convergence/"
-              if not os.path.exists(pathFconv):
-                os.makedirs(pathFconv)
-              savename = pathFconv+datasetsname_short[current_id]+ 'prior' + str(pir)+folder_day+str(arch)+figure_name +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png'.replace("/","-")
-              plt.savefig(savename)
-              plt.close()
+                plt.subplot(414)
+                plt.plot(np.arange(1,len(Liph_train)+1),Liph_train,linewidth=1,color='red')
+                #plt.yscale("log")
+                plt.xlabel("iterations")
+                plt.ylabel("rho[Lip(h)]")
+                plt.legend(['average expected value of Lip(h)'])
+                
+                pathFconv = pathF + "convergence/"
+                if not os.path.exists(pathFconv):
+                  os.makedirs(pathFconv)
+                savename = pathFconv+datasetsname_short[current_id]+ 'prior' + str(pir)+folder_day+str(arch)+figure_name +'_a' +str(a_val[current_id]) +'_pir' +str(pir) +'_m' +str(m_batches[m]) +'_Epoch_'+str(Nepochs)+'.png'.replace("/","-")
+                plt.savefig(savename)
+                plt.close()
       
-      if only_plot_best_pir:
+      if do_plots:
           print(datasetsname_short[current_id], a_val[current_id], arch, best_prior) # 0 wenn best_prior nie geändert wird (warum??)
           
-          """
-          data_test=np.array(m_g.get('data_test'))
-          b_test=np.array(e_g.get('cones_test'))
-          m_e_f_test=np.zeros((0,Ndraws,Ncones_test-1))
-          for j in range(p*c,data_test.shape[0]-p*c):
-              coord_e_f=multi_ef_test(data_test[j-p*c:j+p*c+1,-(Ncones_test-1)*a_val[current_id]-2::a_val[current_id]],best_params_bestpir[j-p*c,:,:],inp,arch,mask,Ndraws,Ncones_test-1,rng)
-              m_e_f_test=np.vstack([m_e_f_test,coord_e_f.reshape((1,*coord_e_f.shape))])
-          crps=[]
-          rmse=[]
-          for n1 in range(8):
-            crps_coord=[]
-            rmse_coord=[]
-            
-            for n2 in range(b_test[:,:Ncrps].shape[-1]):
-              crps_coord.append(crps_univ_rank_mapped(b_test[n1,n2],m_e_f_test[n1,:,n2]))
-              crps.append(crps_coord)
-              rmse_coord.append(rmse_univ(b_test[n1,n2],m_e_f_test[n1,:,n2]))
-              rmse.append(rmse_coord)
-            
-          qs=[.025,.05,.1,.15,.2,.25,.3,.35,.4,.45]#np.linspace(0.05,.45,10)##np.linspace(0.05,.45,10)
-          qs_label=['10%','20%','30%','40%','50%','60%','70%','80%','90%','95%']#print(crps)
-            
-          """
           plt.figure()
           cmap = plt.cm.PuBu  # define the colormap
           # extract all colors from the .jet map
@@ -536,11 +527,17 @@ for current_id in range(len(datasetsM)):
       range_crps_val.sort()
       #print(range_crps_val)
       #range_other_prior_str = "["+str(range_crps_val[1])+","+str(range_crps_val[-1])+"]"
-
+      print("& $\\mathcal{N}(0,1/"+str(best_prior)+")$ & 1000 &"+ str(np.round(best_prior_best_train_error,decimals=4))+ "& 100 &" + str(np.round(best_prior_best_test_error,decimals=4))+' \\'+'\\'+'\n',file =fValBounds)
       #print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&', best_prior_best_train_error,'&',best_prior_iter_train,'&',best_prior_best_test_error,'&',best_prior_iter_test,'&',best_crps_val,'&',best_rmse_val,'&',range_other_prior_str,'&',corr_crps_test,'&',corr_rmse_test, file = fTest_best_pir)  
       
       
-      print("& $",arch[0],'^',len(arch)-1,'$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  
+      #print("& $",arch[0],'^',len(arch)-1,'$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  ### das vlt wieder auskommentieren
+      print("& $",arch[0],'^',len(arch)-1,'$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&', np.round(best_prior_best_test_error,decimals=4),'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  
+      arch_str = str(arch[0])+'^'+str(len(arch)-1)
+      if current_id == 0:
+        print("& $"+arch_str+"$ & N(0,1/"+str(best_prior)+") & "+str(np.round(corr_crps_test, decimals=4))+" & "+str(np.round(corr_rmse_test,decimals=4))+bounded_Gau[i_arch], file = fTestGau)
+      if current_id == 1:
+        print("& $"+arch_str+"$ & N(0,1/"+str(best_prior)+") & "+str(np.round(corr_crps_test, decimals=4))+" & "+str(np.round(corr_rmse_test,decimals=4))+bounded_Nig[i_arch], file = fTestNIG)
 
       #print("printing done for ",datasetsname_short[current_id],arch[i_arch])
     #print('\n\\cmidrule{3-25}\n',file=fTrain)
@@ -548,6 +545,7 @@ for current_id in range(len(datasetsM)):
     #print('\n\\cmidrule{3-25}\n',file=fMMAF)
   print('\\midrule\n\\midrule\n', file=fTrain)
   print('\\midrule\n\\midrule\n', file=fVal)
+  print('\\midrule\n\\midrule\n', file=fValBounds)
   print('\\midrule\n\\midrule\n', file=fMMAF)
 
 

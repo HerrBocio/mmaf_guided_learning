@@ -28,7 +28,7 @@ os.makedirs('/LOCAL/jasst/2002results', exist_ok=True)
 
 
 ids=[1]
-A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
+A_estimatedM=[3.868912]#,]#,[3.840956]#
 c_estimatedM=[1,1]
 
 m_test= 101
@@ -99,5 +99,6 @@ for i,arch in enumerate(archs): # reversed
       file_m=file_.create_group('m'+str(m_batches))
       #print('m=',m_batches)
       Z = STOU(A_estimatedM[current_id],c_estimatedM[current_id],arch,N-m_test*a_val[current_id],m_test-1,m_batches,a_val[current_id],p,h_t[0])
+      print("thetatilde",Z.thetatilder)
       Optimization(file_m,Z,x_size,False,rescaling,eps,delta,data,inp,p,c,arch,dimComp([inp,*arch]),Ndraws,m_batches,m_test,Ncoords,shard_size[0], lr, epochs=Epochs, piScaling=pir)
       file_.close()
