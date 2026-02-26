@@ -28,19 +28,16 @@ do_plots = False
 #path='/afs/tu-chemnitz.de/project/calibration/s_data_new/'
 
 bound_train=[]
-train_errors=[]
+all_epochs_empError_train_mean=[]
 
 bound_test=[]
-test_errors=[]
+all_epochs_bound_test_mean=[]
 
-file_name= day#day+'_full_relu_std'+preTlabel#full_tanh_new_setup,full_relu_new_setup
-figure_name=""#"depth_relu_std"  #day+'_depth_relu_std'#+preTlabel
+
 
 
 a_vals = [[2,2]]
 epochs = [epochs]
-#a_val = [8,8]
-#[p]
 
 delta=0.025
 A_estimatedM=[3.840956,3.868912]#,]#,[3.840956]#
@@ -59,16 +56,12 @@ Ncones_test=101
 
 Ncrps=100
 
-
-
 if not os.path.exists(pathT):
             os.makedirs(pathT)
             
 if not os.path.exists(pathF):
             os.makedirs(pathF)
 
-#fTest_best_pir=open(pathT+'Table_All_Comb_Best_Pir.txt','w')
-#fTest_best_pir.write('Dataset & Architecture & best Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & Validation CRPS & RMSE Val & Range CRPS_Val other prior & Test CRPS & Test RMSE\n\n')
 fVal = open(pathT+ "Validation_table.txt",'w')
 fVal.write('Dataset & Architecture'+piRescaling_str_val+'\n\n')
 
@@ -106,30 +99,29 @@ for current_id in range(len(datasetsM)):
   for i_aval,a_val in enumerate(a_vals):
     data_validation=data[:Ncoords,-(Ncones_test)*a_val[current_id]:-(Ncones_test-1)*a_val[current_id]]
     b_validation=data_validation[:,-1]
-    # print(
-    # r'& \multirow{5}{*}{ ',
-    # file=fTrain
-    # )
-    # print(
-    # r'& \multirow{5}{*}{ ',
-    # file=fVal
-    # )
-    # print(
-    # r'& \multirow{5}{*}{ ',
-    # file=fMMAF
-    # )
+    if len(a_vals)>1:
+      print(
+      r'& \multirow{5}{*}{ ',
+      file=fTrain
+      )
+      print(
+      r'& \multirow{5}{*}{ ',
+      file=fVal
+      )
+      print(
+      r'& \multirow{5}{*}{ ',
+      file=fMMAF
+      )
 
-    for i_arch,arch in enumerate((archs)):#reversed 
-      # if i_arch != 0:
-      #     print('& ', file=fTrain) 
-      #     print('& ', file=fVal) 
-      #     print('& ', file=fMMAF) 
+    for i_arch,arch in enumerate((archs)): 
+      if len(a_vals)>1 and i_arch != 0:
+          print('& ', file=fTrain) 
+          print('& ', file=fVal) 
+          print('& ', file=fMMAF) 
       Nepochs = epochs[i_aval][i_arch]   
       Epochs = range(1,Nepochs+1)
       #fJ=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i])+'.txt','w')
       #fJ.write('Pir & best Train Err. & best Iter. train & best Test Err. & best Iter test & CRPS & RMSE & rho[Lip(h)] at best Iter train. \n\n')
-
-
 
       mask=mask_gen(inp,arch)
       d=dimComp([inp,*archs[i_arch]])
@@ -156,21 +148,22 @@ for current_id in range(len(datasetsM)):
 
             empirical_obj=np.array([])
             pac_obj=np.array([])
-        
-            bound_train_sup=[]
-            train_errors=[]
+            
+            # mean = mean over coordinates
+            all_epochs_bound_train_mean=[]
+            all_epochs_empError_train_mean=[]
 
-            bound_test_sup=[]
-            test_errors=[]
+            all_epochs_bound_test_mean=[]
+            all_epochs_bound_test_mean=[]
 
-            Liph_train = []
-            Liph_test = []
+            all_epochs_Liph_train_mean = []
+            all_epochs_Liph_test_mean = []
             
             for m in range(len(m_batches)): 
               path_and_file_name = os.path.join(
                   path,
                   'prior' + str(pir) + 'var',
-                  file_name + str(arch) + '_' +
+                  str(arch) + '_' +
                   str(datasetsM[current_id])[:3] + '_a' + str(a_val[current_id]) +
                   '_pir' + str(pir) + '_m' + str(m_batches[m]) +
                   '_Epoch_' + str(Nepochs) + '.h5'
@@ -181,43 +174,36 @@ for current_id in range(len(datasetsM)):
                   print(path_and_file_name," FEHLER")
                   continue
               if do_f_epochs:
-                f_epochs=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i_arch])+'_pir'+str(pir)+'.txt','w')
+                f_epochs=open(pathT+'Table_'+datasetsname_short[current_id]+str(archs[i_arch])+'_pir'+str(pir)+'.txt','w')
                 f_epochs.write('Epoch & Train Err. & Test Err. & KL & rho[Lip(h)]\n\n')  
 
               for Epoch in Epochs:
                     m_g=hf.get('m'+str(m_batches[m])) 
                     e_g=m_g.get('epoch'+str(Epoch))
                     
-                    #print(e_g.keys())
-                    #e_f= np.array(e_g.get('e_f'))
-                    #data_test=np.array(e_g.get('cones_test'))
-                    #print(data_test[:,0])
-                    #e_f_inv= np.array(e_g.get('e_f_inv'))
-                    bound_train_sup.append(np.mean( np.array(e_g.get('bound_train_sup'))))#-constants_train)
-                    train_errors.append( np.mean(np.array(e_g.get('train_errors'))))
-                    #min_bound_train.append(np.mean( np.array(e_g.get('min bound'))))
-                    
-                    #print("KL",np.array(e_g.get('KL')))
-                    KL=np.mean(np.array(e_g.get('KL')))/2
+                    all_epochs_bound_train_mean.append(np.mean( np.array(e_g.get('bound_train_sup'))))
+                    all_epochs_empError_train_mean.append( np.mean(np.array(e_g.get('train_errors'))))
 
-                    bound_test_sup.append(np.mean( np.array(e_g.get('bound_test_sup'))))#-constants_test)
-                    test_errors.append(np.mean(np.array(e_g.get('test_errors'))))
+                    KL=np.mean(np.array(e_g.get('KL')))/2 #remove if fixed
+
+                    all_epochs_bound_test_mean.append(np.mean( np.array(e_g.get('bound_test_sup'))))#-constants_test)
+                    all_epochs_bound_test_mean.append(np.mean(np.array(e_g.get('test_errors'))))
                     empirical_obj=np.hstack([empirical_obj,np.mean(np.array(e_g.get('val_jest')),axis=1)])
                     pac_obj=np.hstack([pac_obj,np.mean(np.array(e_g.get('val_grad')),axis=1)])
 
-                    Liph_train.append(np.mean(np.array(e_g.get('Lips_train'))))
-                    Liph_test.append(np.mean(np.array(e_g.get('Lips_test'))))
+                    all_epochs_Liph_train_mean.append(np.mean(np.array(e_g.get('Lips_train'))))
+                    all_epochs_Liph_test_mean.append(np.mean(np.array(e_g.get('Lips_test'))))
 
 
                     if do_f_epochs:
-                      print(Epoch,'&',bound_train_sup[-1]+train_errors[-1],'&',bound_test_sup[-1]+test_errors[-1],'&',KL,'&',Liph_train[-1],file=f_epochs)
+                      print(Epoch,'&',all_epochs_bound_train_mean[-1]+all_epochs_empError_train_mean[-1],'&',all_epochs_bound_test_mean[-1]+all_epochs_bound_test_mean[-1],'&',KL,'&',all_epochs_Liph_train_mean[-1],file=f_epochs)
 
-              whole_bound_train = np.array(bound_train_sup)+np.array(train_errors)
+              whole_bound_train = np.array(all_epochs_bound_train_mean)+np.array(all_epochs_empError_train_mean)
               print(whole_bound_train)
               best_whole_bound_train = np.min(whole_bound_train)
               best_iter_train = np.argmin(whole_bound_train)+1
 
-              whole_bound_test = np.array(bound_test_sup)+np.array(test_errors)
+              whole_bound_test = np.array(all_epochs_bound_test_mean)+np.array(all_epochs_bound_test_mean)
               best_whole_bound_test = np.min(whole_bound_test)
               best_iter_test = np.argmin(whole_bound_test)+1
 
@@ -235,9 +221,10 @@ for current_id in range(len(datasetsM)):
               min_it=np.array(b_g.get('min iteration_sup'))
               min_error_sup = np.array(b_g.get('min_error_sup'))
               train_emp_error_best_it = np.mean(np.array(e_g.get('train_errors')))
+              print("min error sup",min_error_sup,best_whole_bound_train)
 
-              print("min_it = ",min_it,"; best_iter_train=",best_iter_train)
-              print("min_error_sup",min_error_sup,"best_whole_bound_train",best_whole_bound_train)
+              #print("min_it = ",min_it,"; best_iter_train=",best_iter_train)
+              #print("min_error_sup",min_error_sup,"best_whole_bound_train",best_whole_bound_train)
               all_KLs = e_g.get('KL')
               for KL___ in all_KLs:
                  print("KL...",KL___/2)
@@ -425,7 +412,7 @@ for current_id in range(len(datasetsM)):
                 #log entire epochs plots - sup
                 plt.figure(figsize=(12, 10))                  
                 plt.subplot(411)
-                plt.plot(np.arange(1,len(bound_train_sup)+1),np.array(bound_train_sup)+np.array(train_errors),linewidth=1,color='black')
+                plt.plot(np.arange(1,len(all_epochs_bound_train_mean)+1),np.array(all_epochs_bound_train_mean)+np.array(all_epochs_empError_train_mean),linewidth=1,color='black')
                 plt.yscale("log")
                 plt.xlabel("epochs")
                 plt.ylabel("av. train. error")
@@ -433,7 +420,7 @@ for current_id in range(len(datasetsM)):
                 #plt.annotate('bound validation set '+str(bou) ,xy=(0,-0.9),fontsize='x-small')
 
                 plt.subplot(412)
-                plt.plot(np.arange(1,len(bound_test_sup)+1),np.array(bound_test_sup)+np.array(test_errors),linewidth=1,color='blue')
+                plt.plot(np.arange(1,len(all_epochs_bound_test_mean)+1),np.array(all_epochs_bound_test_mean)+np.array(all_epochs_bound_test_mean),linewidth=1,color='blue')
                 plt.yscale("log")
                 plt.xlabel("epochs")
                 plt.ylabel("av. test error")
@@ -447,7 +434,7 @@ for current_id in range(len(datasetsM)):
                 plt.legend(['av. obj function (using bound with E)'])
 
                 plt.subplot(414)
-                plt.plot(np.arange(1,len(Liph_train)+1),Liph_train,linewidth=1,color='red')
+                plt.plot(np.arange(1,len(all_epochs_Liph_train_mean)+1),all_epochs_Liph_train_mean,linewidth=1,color='red')
                 #plt.yscale("log")
                 plt.xlabel("iterations")
                 plt.ylabel("rho[Lip(h)]")
