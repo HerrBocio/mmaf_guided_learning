@@ -86,14 +86,18 @@ fTrain.write('Dataset & a & Architecture'+piRescaling_str_train+'\n\n')
 
 fTestGau =open(pathT+"TestGau_Table.txt",'w')
 fTestNIG =open(pathT+"TestNIG_Table.txt",'w')
-fTestGau.write("Dataset & Arch & bestPirunb & CRPSunb & RMSEunb & bestPirb & CRPSb & RMSEb")
-fTestNIG.write("Dataset & Arch & bestPirunb & CRPSunb & RMSEunb & bestPirb & CRPSb & RMSEb")
+fTestGau.write("Dataset & Arch & bestPirunb & CRPSunb & RMSEunb & bestPirb & CRPSb & RMSEb\n\n")
+fTestNIG.write("Dataset & Arch & bestPirunb & CRPSunb & RMSEunb & bestPirb & CRPSb & RMSEb\n\n")
+
+fKL=open(pathT+"KL_Table.txt",'w')
+fKL.write("Dataset & Arch & for all priors: KL, KL/sqrt(m), Bound-KL/sqrt(m)\n\n")
 
 for current_id in range(len(datasetsM)):
   print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fTrain)
   print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fVal)
   print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fValBounds)
   print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fMMAF)
+  print('\\multirow{5}{*}{',datasetsname_short[current_id],'} ', file=fKL)
   #print(datasetsname_short[current_id], file=fMMAF)
   data=get_simulated_data(data_path+datasetsM[current_id] ) #might be converted into JNP
   
@@ -138,6 +142,7 @@ for current_id in range(len(datasetsM)):
 
       val_prior_row_str = " & $"+str(arch[0])+'^'+str(len(arch)-1)+"$ "
       train_prior_row_str =" & $"+str(arch[0])+'^'+str(len(arch)-1)+"$ "
+      KL_row_str =" & $"+str(arch[0])+'^'+str(len(arch)-1)+"$ "
       print(" & $"+str(arch[0])+'^'+str(len(arch)-1)+"$ ", file = fValBounds)
 
       bound_string = ""
@@ -193,7 +198,7 @@ for current_id in range(len(datasetsM)):
                     #min_bound_train.append(np.mean( np.array(e_g.get('min bound'))))
                     
                     #print("KL",np.array(e_g.get('KL')))
-                    KL=np.mean(np.array(e_g.get('KL')))
+                    KL=np.mean(np.array(e_g.get('KL')))/2
 
                     bound_test_sup.append(np.mean( np.array(e_g.get('bound_test_sup'))))#-constants_test)
                     test_errors.append(np.mean(np.array(e_g.get('test_errors'))))
@@ -208,6 +213,7 @@ for current_id in range(len(datasetsM)):
                       print(Epoch,'&',bound_train_sup[-1]+train_errors[-1],'&',bound_test_sup[-1]+test_errors[-1],'&',KL,'&',Liph_train[-1],file=f_epochs)
 
               whole_bound_train = np.array(bound_train_sup)+np.array(train_errors)
+              print(whole_bound_train)
               best_whole_bound_train = np.min(whole_bound_train)
               best_iter_train = np.argmin(whole_bound_train)+1
 
@@ -225,27 +231,44 @@ for current_id in range(len(datasetsM)):
               emp_risk=np.mean(emp_risk)
 
               b_g=m_g.get('min')
-              best_params_sup=jnp.array(b_g.get('best params_sup'))
+              best_params=jnp.array(b_g.get('best params_sup'))
               min_it=np.array(b_g.get('min iteration_sup'))
               min_error_sup = np.array(b_g.get('min_error_sup'))
               train_emp_error_best_it = np.mean(np.array(e_g.get('train_errors')))
 
               #print("min_it = ",min_it,"; best_iter_train=",best_iter_train)
               #print("min_error_sup",min_error_sup,"best_whole_bound_train",best_whole_bound_train)
+              all_KLs = e_g.get('KL')
+              for KL___ in all_KLs:
+                 print("KL...",KL___/2)
+              print("Parts of Bound for best params")
+              for n1 in range(p*c,data_validation.shape[0]-p*c):
+                piParams0=piParams[0] 
+                piParams1=piParams[1] 
+                rhoParams = best_params[n1-p*c,:,:]
+                rhoParams0=rhoParams[0] 
+                rhoParams1=rhoParams[1]
+                #print(piParams0.shape, piParams1.shape, rhoParams0.shape, rhoParams1.shape, len(rhoParams))
+                #kl_mapped = jax.vmap(lambda beta: KLdiag_from_log_scale(piParams,beta,0))
+                KL_ = KLdiag_from_log_scale(piParams,best_params[n1-p*c,:,:],0)
+                print("KL",KL_)
+                KLsqm = KL_/np.sqrt(1000)
+                print("KL/sqrt(m)", KLsqm)
 
+                #print("Bound - KL/sqrt(m)", min_error_sup[n1] - KLsqm)
 
               Liph_train_best_iter = np.mean(e_g.get('Lips_train'),axis=0)
-              KL_train_best_iter = np.mean(e_g.get('KL'),axis=0)
+              KL_train_best_iter = np.mean(e_g.get('KL'),axis=0)/2
               #Liphhhhh = np.array(e_g.get('Lips_train'))
               #KLLLLLLLLL= np.array(e_g.get('KL'))
               #print("LipHHHH", Liphhhhh)
               #print("KLLLLL",KLLLLLLLLL)
 
-              safe_mean=lambda beta: beta/best_params_sup.shape[0]
+              safe_mean=lambda beta: beta/best_params.shape[0]
 
               m_e_f_validation=np.zeros((0,Ndraws,1))
               for n1 in range(p*c,data_validation.shape[0]-p*c):
-                  coord_e_f=multi_ef_validation(data_validation[n1-p*c:n1+p*c+1,-2],best_params_sup[n1-p*c,:,:],inp,arch,mask,Ndraws,1,rng)
+                  coord_e_f=multi_ef_validation(data_validation[n1-p*c:n1+p*c+1,-2],best_params[n1-p*c,:,:],inp,arch,mask,Ndraws,1,rng)
                   m_e_f_validation=np.vstack([m_e_f_validation,coord_e_f.reshape((1,*coord_e_f.shape))])
               crps=[]
               rmse=[]
@@ -261,6 +284,7 @@ for current_id in range(len(datasetsM)):
               #print(pir, '&', np.round(best_whole_bound_train,decimals=4),'&',best_iter_train,'&', np.round(best_whole_bound_test,decimals=4), '&', best_iter_test,'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',Liph_train_best_iter,file=fJ) 
               val_prior_row_str += " & "+str(np.round(np.mean(crps),decimals=4))+'&'+str(np.round(np.mean(np.sqrt(rmse)),decimals=4))
               train_prior_row_str += " & "+str(best_iter_train)+' & '+str(np.round(Liph_train_best_iter,decimals=4))+' & '+str(np.round(KL_train_best_iter, decimals=4))+' & '+str(np.round(train_emp_error_best_it, decimals=4))
+              KL_row_str += " & "+str(np.round(KL_train_best_iter,decimals = 1))+" & "+str(np.round(KL_train_best_iter/np.sqrt(1000),decimals = 2))+" & "+str(np.round(best_whole_bound_train-KL_train_best_iter/np.sqrt(1000),decimals = 2))
 
               range_crps_val.append(np.mean(crps))
 
@@ -275,7 +299,7 @@ for current_id in range(len(datasetsM)):
                     best_prior_iter_test = best_iter_test
                     best_rmse_val = np.mean(np.sqrt(rmse))
                     best_prior_emp_train_error = train_emp_error_best_it
-                    best_params_bestpir = best_params_sup
+                    best_params_bestpir = best_params
 
 
               ########
@@ -284,7 +308,7 @@ for current_id in range(len(datasetsM)):
               b_test=np.array(e_g.get('cones_test'))
               m_e_f_test=np.zeros((0,Ndraws,Ncones_test-1))
               for j in range(p*c,data_test.shape[0]-p*c):
-                  coord_e_f=multi_ef_test(data_test[j-p*c:j+p*c+1,-(Ncones_test-1)*a_val[current_id]-2::a_val[current_id]],best_params_sup[j-p*c,:,:],inp,arch,mask,Ndraws,Ncones_test-1,rng)
+                  coord_e_f=multi_ef_test(data_test[j-p*c:j+p*c+1,-(Ncones_test-1)*a_val[current_id]-2::a_val[current_id]],best_params[j-p*c,:,:],inp,arch,mask,Ndraws,Ncones_test-1,rng)
                   m_e_f_test=np.vstack([m_e_f_test,coord_e_f.reshape((1,*coord_e_f.shape))])
               crps=[]
               rmse=[]
@@ -524,6 +548,7 @@ for current_id in range(len(datasetsM)):
       print(val_prior_row_str,' \\'+'\\'+'\n',file =fVal)#datasetsname_short[current_id],'&',arch,' '
       #print(datasetsname_short[current_id],'& ',best_prior,'& ',train_prior_row_str,' \\'+'\\'+'\n',file =fTrain)
       print(train_prior_row_str,' \\'+'\\'+'\n',file =fTrain)
+      print(KL_row_str,' \\'+'\\'+'\n',file =fKL)
       range_crps_val.sort()
       #print(range_crps_val)
       #range_other_prior_str = "["+str(range_crps_val[1])+","+str(range_crps_val[-1])+"]"

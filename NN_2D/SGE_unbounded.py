@@ -95,19 +95,25 @@ def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,
     abs_E_hX = jax.vmap(abs_mean)(hX)
     rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liphs))
     rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
-    tf_E = apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
-    tf_E += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
-    tf_E += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
-    tf_E += rho_hXsq/(2*jnp.sqrt(m))
+    tf_E = apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))######
+    tf_E += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)#####
+    tf_E += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph######
+    tf_E += rho_hXsq/(2*jnp.sqrt(m))######
     #Erho = rho_Liph #LipC(rhoParams,dim,mask,arch) # this is not E[rho[Lip(h)]], just an estimation with one draw
     #tf += 1/delta**2*(1/jnp.sqrt(m)*Erho**2 + 2*apc*theta*Erho)
-    tf_sup = tf_E + theta*apc/delta * rho_Liph # rho_Liph as an estimation for sup rho[Lip(h)]
+    tf_sup = tf_E + theta*apc/delta * rho_Liph # rho_Liph as an estimation for sup rho[Lip(h)]######
     tf_E += 1/delta**2*(1/jnp.sqrt(m)*rho_Liph**2 + 2*apc*theta*rho_Liph)
     constants_sup = theta*(1+1/delta)+jnp.log(1/delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))
     constants_E = constants_sup +jnp.sqrt(m)*(apc*theta/delta)**2
-    KL = target_func_unbounded_KL(piParams,rhoParams,dim,m)
-    bound_E = tf_E + KL + constants_E
-    bound_sup = tf_sup + KL + constants_sup
+    KLdivSqrtm = target_func_unbounded_KL(piParams,rhoParams,dim,m)
+    bound_E = tf_E + KLdivSqrtm + constants_E
+    bound_sup = tf_sup + KLdivSqrtm + constants_sup
+    jax.debug.print("KLdivSqrtm {}",KLdivSqrtm)
+    jax.debug.print("apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m)) {}",apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m)))
+    jax.debug.print("rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2) {}",rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2))
+    jax.debug.print("apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph {}",apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph)
+    jax.debug.print("rho_hXsq/(2*jnp.sqrt(m)) {}", rho_hXsq/(2*jnp.sqrt(m)))
+    jax.debug.print("theta*apc/delta * rho_Liph {}",theta*apc/delta * rho_Liph)
     return [bound_E,bound_sup,rho_Liph]
 
 def l_empirical_risk_unbounded(A,b,arch,mask):
