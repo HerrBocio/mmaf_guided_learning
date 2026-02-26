@@ -3,13 +3,13 @@
 delta=.025
 inp=3
 h_t=[1]
-epochs = [75,80]
-archs=[[300,300,1],[10,10,10,10,10,1]]
+epochs = [12,25,50]
+archs=[[10,10,1],[30,30,1],[100,100,1]]
 if len(epochs) != len(archs):
     print("Epochs and archs have to have the same length.")
     epochs = epochs[:len(archs)]
-datasetsM= ['NIGdiamonddata1A4mln']#
-datasetsname_short= ['NIG']#
+datasetsM= ['Gaudiamonddata1A4mln']#
+datasetsname_short= ['Gau']#
 m_batches=1000 
 p=1
 c=1

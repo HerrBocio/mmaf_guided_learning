@@ -17,7 +17,7 @@ Ndraws=1000
 
 #folder_day = "2201final_different_a_"
 #folder_day="1501final_"
-folder_day ="2002"
+folder_day ="2602"
 
 pathT="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/tables/" #'results/s_data/tables/'
 pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'results/s_data/figures/'
@@ -27,8 +27,8 @@ pathF="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/figures/" #'re
 path="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/"
 #day = "final_different_a"
 #day = "final_"
-day = "2002"
-pathsave='/LOCAL/jasst/2002_NIGresults/'
+day = "2602"
+pathsave='/LOCAL/jasst/2602_results/'
 
 do_f_epochs = False
 save_eps = False

@@ -167,41 +167,6 @@ def KLdiag_from_log_scale(piParams,rhoParams,NNsize):
     #jax.debug.print("kl {}", kl)
     return kl/2
 
-def my_KLdiag_from_log_scale(piParams, rhoParams):
-    piMean=piParams[0] 
-    pilogVars=piParams[1] 
-    rhoMean=rhoParams[0] 
-    rhologVars=rhoParams[1]
-
-def KLdiag_from_log_scale_for_understanding(piParams,rhoParams,NNsize):
-    
-    '''
-    computes the KL divergence for two multivariate gaussians, with respect to the log scale
-    
-
-    Parameters
-    ----------
-    piParams: parameters of the reference distribution
-    rhoParams: parameters of the generalised posterior distribution
-    NNsize: parameters dimension
-    Returns
-    kl: computation of the divergence
-    -------
-    None.
-    '''
-    piMean=piParams[0] 
-    pilogVars=piParams[1] 
-    rhoMean=rhoParams[0] 
-    rhologVars=rhoParams[1]
-    inv=lambda beta: 1./beta
-    kl= jnp.sum(jnp.exp(rhologVars-pilogVars)-1)
-    diff=piMean-rhoMean
-    prod=lambda a,b: a*b
-    kl= kl + jnp.dot(diff,jax.vmap(prod)(jnp.exp(-pilogVars),diff)) #matmul
-    kl=kl + jnp.sum(pilogVars)
-    kl=kl - jnp.sum(rhologVars)
-    return kl
-    
 
 def KLdiag_grad(piParams,rhoParams,NNsize):
     '''

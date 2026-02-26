@@ -108,12 +108,13 @@ def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,
     KLdivSqrtm = target_func_unbounded_KL(piParams,rhoParams,dim,m)
     bound_E = tf_E + KLdivSqrtm + constants_E
     bound_sup = tf_sup + KLdivSqrtm + constants_sup
-    jax.debug.print("KLdivSqrtm {}",KLdivSqrtm)
-    jax.debug.print("apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m)) {}",apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m)))
-    jax.debug.print("rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2) {}",rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2))
-    jax.debug.print("apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph {}",apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph)
-    jax.debug.print("rho_hXsq/(2*jnp.sqrt(m)) {}", rho_hXsq/(2*jnp.sqrt(m)))
-    jax.debug.print("theta*apc/delta * rho_Liph {}",theta*apc/delta * rho_Liph)
+    #####jax.debug.print("KLdivSqrtm {}",KLdivSqrtm)
+    #####jax.debug.print("apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m)) {}",apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m)))
+    #####jax.debug.print("rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2) {}",rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2))
+    #####jax.debug.print("apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph {}",apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph)
+    #####jax.debug.print("rho_hXsq/(2*jnp.sqrt(m)) {}", rho_hXsq/(2*jnp.sqrt(m)))
+    #####jax.debug.print("theta*apc/delta * rho_Liph {}",theta*apc/delta * rho_Liph)
+    jax.debug.print("bound_sup in function {}",bound_sup)
     return [bound_E,bound_sup,rho_Liph]
 
 def l_empirical_risk_unbounded(A,b,arch,mask):
@@ -169,29 +170,38 @@ def error_unbounded(it_params,Z,A_c_e,b_c_e,dim,arch,mask,piParams,m,delta,rng,s
     #lambda function, computes the value for the empirical risk
     MC_train_e = r_empirical_risk_unbounded(A_c_e,b_c_e,arch, mask)
     #m= Z.Ncones
-
+    print("N {}",N)
     # N draws from the predictive distribution
     realizations = dist_sample([it_params[0],it_params[1]],num_realizations=N,seed=rng)
     realizations = realizations.reshape((N//shard_size,shard_size,dim))
-    
+    print("N//shard_size {}, shard_size {}",N//shard_size, shard_size)
     error=0
     pac_E = 0 
+    pac_sup_list = []
     pac_sup = 0 
     Liph_mean = 0
     theta = Z.thetatilder
     VarZtrx = Z.truncated_covs_between_all_members_of_cone()[1][0][0]
     for el in realizations:
     #serial parallelization for each shard
-      e = MC_train_e(el)
+      e = MC_train_e(el) #this has shape (shard_size, ), so we need to divide by N at the end
+      jax.debug.print("e - is this shape 1 or 5 {}",e)
       error += jnp.sum(e)
-      pE,psup,rho_Liph = pac_unbounded(A_c_e,el,piParams,it_params,dim,arch,mask,theta,VarZtrx,m,delta) # A instead of A_c_e, but rethink in ways I shard
+      pE,psup,rho_Liph = pac_unbounded(A_c_e,el,piParams,it_params,dim,arch,mask,theta,VarZtrx,m,delta) # they are just single numbers, no arrays (because averaging over shard_size already happens in pac_unbounded) -> we need to divide by N//shard_size at the end
+      jax.debug.print("psup {}",psup)
       pac_E += jnp.sum(pE)
+      pac_sup_list.append(psup)
       pac_sup += jnp.sum(psup)
       Liph_mean += rho_Liph
-    error=error/N
-    pac_E=pac_E/N
-    pac_sup=pac_sup/N
-    Liph_mean = Liph_mean/N
+    jax.debug.print("pac sup before /N {}",pac_sup)
+    div_factor = len(realizations)
+    error=error/N 
+    pac_E=pac_E/div_factor
+    pac_sup=pac_sup/div_factor
+    Liph_mean = Liph_mean/div_factor
+    #jax.debug.print("pac list {}", pac_sup_list)
+    jax.debug.print("pac list mean {}", jnp.mean(jnp.array(pac_sup_list)))
+    jax.debug.print("pac_sup {}", pac_sup)
     #jax.debug.print("pac_sup {}", pac_sup)
     return [error,pac_E,pac_sup, Liph_mean]
 

@@ -8,8 +8,8 @@ archs=[[300,300,1],[10,10,10,10,10,1]]
 if len(epochs) != len(archs):
     print("Epochs and archs have to have the same length.")
     epochs = epochs[:len(archs)]
-datasetsM= ['NIGdiamonddata1A4mln']#
-datasetsname_short= ['NIG']#
+datasetsM= ['Gaudiamonddata1A4mln']#
+datasetsname_short= ['Gau']#
 m_batches=1000 
 p=1
 c=1

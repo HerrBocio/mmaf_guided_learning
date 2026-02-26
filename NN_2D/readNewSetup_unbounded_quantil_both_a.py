@@ -184,8 +184,8 @@ for current_id in range(len(datasetsM)):
                 f_epochs=open(pathT+'Table_'+figure_name+''+datasetsname_short[current_id]+str(archs[i_arch])+'_pir'+str(pir)+'.txt','w')
                 f_epochs.write('Epoch & Train Err. & Test Err. & KL & rho[Lip(h)]\n\n')  
 
+              m_g=hf.get('m'+str(m_batches[m])) 
               for Epoch in Epochs:
-                    m_g=hf.get('m'+str(m_batches[m])) 
                     e_g=m_g.get('epoch'+str(Epoch))
                     
                     #print(e_g.keys())
@@ -212,48 +212,36 @@ for current_id in range(len(datasetsM)):
                     if do_f_epochs:
                       print(Epoch,'&',bound_train_sup[-1]+train_errors[-1],'&',bound_test_sup[-1]+test_errors[-1],'&',KL,'&',Liph_train[-1],file=f_epochs)
 
-              whole_bound_train = np.array(bound_train_sup)+np.array(train_errors)
-              print(whole_bound_train)
-              best_whole_bound_train = np.min(whole_bound_train)
-              best_iter_train = np.argmin(whole_bound_train)+1
-
-              whole_bound_test = np.array(bound_test_sup)+np.array(test_errors)
-              best_whole_bound_test = np.min(whole_bound_test)
-              best_iter_test = np.argmin(whole_bound_test)+1
-
-              print("best_iter_train", best_iter_train)
-              
-
-              rng=jax.random.key(Nepochs)
-              
-              e_g=m_g.get('epoch'+str(best_iter_train))
-              emp_risk =np.array( e_g.get('val_jest'))
-              emp_risk=np.mean(emp_risk)
-
               b_g=m_g.get('min')
-              best_params=jnp.array(b_g.get('best params_sup'))
-              min_it=np.array(b_g.get('min iteration_sup'))
-              min_error_sup = np.array(b_g.get('min_error_sup'))
-              train_emp_error_best_it = np.mean(np.array(e_g.get('train_errors')))
+              best_iter =np.array(b_g.get('min iteration_sup'))
+              rng=jax.random.key(Nepochs)
 
-              print("min_it = ",min_it,"; best_iter_train=",best_iter_train)
-              print("min_error_sup",min_error_sup,"best_whole_bound_train",best_whole_bound_train)
-              all_KLs = e_g.get('KL')
-              for KL___ in all_KLs:
-                 print("KL...",KL___/2)
+              best_e_g=m_g.get('epoch'+str(best_iter))
+
+              best_params=jnp.array(b_g.get('best params_sup'))
+              best_bound_plus_emError_train_mean = np.array(b_g.get('min_error_sup'))
+              best_bound_without_emError_train = np.array(best_e_g.get('bound_train_sup'))
+              best_empError_train = np.array(best_e_g.get('train_errors'))
+              # 'best' meaning corresponding to the best iteration 
+              print("are those arrays")
+              print(best_bound_without_emError_train)
+              print(best_empError_train) 
+              Lips = np.array(best_e_g.get("Lips_train"))  
+              
               print("Parts of Bound for best params")
-              for n1 in range(p*c,data_validation.shape[0]-p*c):
+              for counter,n1 in enumerate(range(p*c,data_validation.shape[0]-p*c)):
                 piParams0=piParams[0] 
                 piParams1=piParams[1] 
                 rhoParams = best_params[n1-p*c,:,:]
                 rhoParams0=rhoParams[0] 
                 rhoParams1=rhoParams[1]
-                #print(piParams0.shape, piParams1.shape, rhoParams0.shape, rhoParams1.shape, len(rhoParams))
-                #kl_mapped = jax.vmap(lambda beta: KLdiag_from_log_scale(piParams,beta,0))
+                print("empirical error",best_empError_train[counter])
                 KL_ = KLdiag_from_log_scale(piParams,best_params[n1-p*c,:,:],0)
-                print("KL",KL_)
+                #print("KL",KL_)
                 KLsqm = KL_/np.sqrt(1000)
                 print("KL/sqrt(m)", KLsqm)
+                print("apc*rho[Lip(h)]*(thetalex+Var(Z_t^r(x))/sqrt(m))")
+                print("Lip", Lips[counter]*5)
 
                 #print("Bound - KL/sqrt(m)", min_error_sup[n1] - KLsqm)
 
@@ -283,8 +271,8 @@ for current_id in range(len(datasetsM)):
                 
               #print(pir, '&', np.round(best_whole_bound_train,decimals=4),'&',best_iter_train,'&', np.round(best_whole_bound_test,decimals=4), '&', best_iter_test,'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.mean(np.sqrt(rmse)),decimals=4),'&',Liph_train_best_iter,file=fJ) 
               val_prior_row_str += " & "+str(np.round(np.mean(crps),decimals=4))+'&'+str(np.round(np.mean(np.sqrt(rmse)),decimals=4))
-              train_prior_row_str += " & "+str(best_iter_train)+' & '+str(np.round(Liph_train_best_iter,decimals=4))+' & '+str(np.round(KL_train_best_iter, decimals=4))+' & '+str(np.round(train_emp_error_best_it, decimals=4))
-              KL_row_str += " & "+str(np.round(KL_train_best_iter,decimals = 1))+" & "+str(np.round(KL_train_best_iter/np.sqrt(1000),decimals = 2))+" & "+str(np.round(best_whole_bound_train-KL_train_best_iter/np.sqrt(1000),decimals = 2))
+              train_prior_row_str += " & "+str(best_iter)+' & '+str(np.round(Liph_train_best_iter,decimals=4))+' & '+str(np.round(KL_train_best_iter, decimals=4))+' & '+str(np.round(best_empError_train, decimals=4))
+              KL_row_str += " & "+str(np.round(KL_train_best_iter,decimals = 1))+" & "+str(np.round(KL_train_best_iter/np.sqrt(1000),decimals = 2))+" & "+str(np.round(best_bound_plus_emError_train_mean-KL_train_best_iter/np.sqrt(1000),decimals = 2))
 
               range_crps_val.append(np.mean(crps))
 
@@ -293,12 +281,12 @@ for current_id in range(len(datasetsM)):
                     print("updated best prior from ",best_prior)
                     best_prior = pir
                     print("...to ",best_prior)
-                    best_prior_best_train_error = best_whole_bound_train
-                    best_prior_iter_train = best_iter_train
+                    best_prior_best_train_error = best_bound_plus_emError_train_mean
+                    best_prior_iter_train = best_iter
                     best_prior_best_test_error = best_whole_bound_test
                     best_prior_iter_test = best_iter_test
                     best_rmse_val = np.mean(np.sqrt(rmse))
-                    best_prior_emp_train_error = train_emp_error_best_it
+                    best_prior_emp_train_error = best_empError_train
                     best_params_bestpir = best_params
 
 

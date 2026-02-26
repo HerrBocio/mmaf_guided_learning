@@ -28,7 +28,7 @@ path="/afs/tu-chemnitz.de/home/urz/j/jasst/"+folder_day+"results/"
 #day = "final_different_a"
 #day = "final_"
 day = "2002"
-pathsave='/LOCAL/jasst/2002_NIGresults/'
+pathsave='/LOCAL/jasst/2602_results/'
 
 do_f_epochs = False
 save_eps = False
