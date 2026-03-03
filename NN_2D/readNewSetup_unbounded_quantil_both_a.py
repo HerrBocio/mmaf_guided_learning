@@ -22,7 +22,8 @@ data_path="../datasets_2D/" # server
 
 
 do_plots = True
-do_plots = False
+#do_plots = False
+plot_space = False
 #
 #path='/afs/tu-chemnitz.de/project/calibration/aistatsResults/s_data_old/'
 #path='/afs/tu-chemnitz.de/project/calibration/s_data_new/'
@@ -198,7 +199,7 @@ for current_id in range(len(datasetsM)):
                     #min_bound_train.append(np.mean( np.array(e_g.get('min bound'))))
                     
                     #print("KL",np.array(e_g.get('KL')))
-                    KL=np.mean(np.array(e_g.get('KL')))/2
+                    KL=np.mean(np.array(e_g.get('KL')))
 
                     bound_test_sup.append(np.mean( np.array(e_g.get('bound_test_sup'))))#-constants_test)
                     test_errors.append(np.mean(np.array(e_g.get('test_errors'))))
@@ -246,7 +247,7 @@ for current_id in range(len(datasetsM)):
                 #print("Bound - KL/sqrt(m)", min_error_sup[n1] - KLsqm)
 
               Liph_train_best_iter = np.mean(e_g.get('Lips_train'),axis=0)
-              KL_train_best_iter = np.mean(e_g.get('KL'),axis=0)/2
+              KL_train_best_iter = np.mean(e_g.get('KL'),axis=0)
               #Liphhhhh = np.array(e_g.get('Lips_train'))
               #KLLLLLLLLL= np.array(e_g.get('KL'))
               #print("LipHHHH", Liphhhhh)
@@ -283,8 +284,8 @@ for current_id in range(len(datasetsM)):
                     print("...to ",best_prior)
                     best_prior_best_train_error = best_bound_plus_emError_train_mean
                     best_prior_iter_train = best_iter
-                    best_prior_best_test_error = best_whole_bound_test
-                    best_prior_iter_test = best_iter_test
+                    #best_prior_best_test_error = best_whole_bound_test
+                    #best_prior_iter_test = best_iter_test
                     best_rmse_val = np.mean(np.sqrt(rmse))
                     best_prior_emp_train_error = best_empError_train
                     best_params_bestpir = best_params
@@ -363,42 +364,42 @@ for current_id in range(len(datasetsM)):
                 if save_eps:
                   plt.savefig(pathF+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.eps',bbox_inches='tight')
                 plt.close()
+                if plot_space:
+                  plt.figure()
+                  fig2, axs2 = plt.subplots(2, 2,figsize=(12,9))
+                  #plt.subplots_adjust(hspace=0)
+                  fig2.tight_layout()
 
-                plt.figure()
-                fig2, axs2 = plt.subplots(2, 2,figsize=(12,9))
-                #plt.subplots_adjust(hspace=0)
-                fig2.tight_layout()
+                  for i_, ax in enumerate(fig2.axes):
+                    #ax.set_ylabel(str(i))
+                    for j,el in enumerate(qs):
+                      ax.fill_between(np.arange(1,m_e_f_test.shape[0]+1),np.quantile(m_e_f_test[:,:,2*i_],q=el,axis=1),np.quantile(m_e_f_test[:,:,2*i_],q=1-el,axis=1),color=cmaplist[60+15*(j+1)])#,color='teal')
+                      ax.plot(np.arange(1,b_test.shape[0]+1),b_test[:,2*i_],color='orange',linewidth=.5)
+                      
+                    #ax.annotate('average crps: '+ str(np.round(np.mean(crps[2*i],axis=0),decimals=4)) ,xy=(30,np.amax(np.quantile(m_e_f[2*i,:,:],q=.975,axis=0))-.01),fontsize='x-small')
+                  
+                  
+                  custom_lines = [Line2D([0], [0],marker='s', color=cmaplist[60+15*(0+1)], lw=8),
+                                  Line2D([0], [0],marker='s', color=cmaplist[60+15*(1+1)], lw=8),
+                                  Line2D([0], [0],marker='s', color=cmaplist[60+15*(2+1)], lw=8),
+                                  Line2D([0], [0],marker='s', color=cmaplist[60+15*(3+1)], lw=8),
+                                  Line2D([0], [0],marker='s', color=cmaplist[60+15*(4+1)], lw=8),
+                                  Line2D([0], [0],marker='s', color=cmaplist[60+15*(5+1)], lw=8),
+                                  Line2D([0], [0],marker='s', color=cmaplist[60+15*(6+1)], lw=8),
+                                  Line2D([0], [0],marker='s', color=cmaplist[60+15*(7+1)], lw=8),
+                                  Line2D([0], [0],marker='s', color=cmaplist[60+15*(8+1)], lw=8),
+                                  Line2D([0], [0],marker='s', color=cmaplist[60+15*(9+1)], lw=8),
+                                  ]
+                  fig2.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
+        #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
+                  pathFspace = pathF+ "space/"
+                  if not os.path.exists(pathFspace):
+                    os.makedirs(pathFspace)
+                  plt.savefig(pathFspace+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.png',bbox_inches='tight')
+                  if save_eps:
+                    plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.eps',bbox_inches='tight')
 
-                for i_, ax in enumerate(fig2.axes):
-                  #ax.set_ylabel(str(i))
-                  for j,el in enumerate(qs):
-                    ax.fill_between(np.arange(1,m_e_f_test.shape[0]+1),np.quantile(m_e_f_test[:,:,2*i_],q=el,axis=1),np.quantile(m_e_f_test[:,:,2*i_],q=1-el,axis=1),color=cmaplist[60+15*(j+1)])#,color='teal')
-                    ax.plot(np.arange(1,b_test.shape[0]+1),b_test[:,2*i_],color='orange',linewidth=.5)
-                    
-                  #ax.annotate('average crps: '+ str(np.round(np.mean(crps[2*i],axis=0),decimals=4)) ,xy=(30,np.amax(np.quantile(m_e_f[2*i,:,:],q=.975,axis=0))-.01),fontsize='x-small')
-                
-                
-                custom_lines = [Line2D([0], [0],marker='s', color=cmaplist[60+15*(0+1)], lw=8),
-                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(1+1)], lw=8),
-                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(2+1)], lw=8),
-                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(3+1)], lw=8),
-                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(4+1)], lw=8),
-                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(5+1)], lw=8),
-                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(6+1)], lw=8),
-                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(7+1)], lw=8),
-                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(8+1)], lw=8),
-                                Line2D([0], [0],marker='s', color=cmaplist[60+15*(9+1)], lw=8),
-                                ]
-                fig2.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
-      #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
-                pathFspace = pathF+ "space/"
-                if not os.path.exists(pathFspace):
-                  os.makedirs(pathFspace)
-                plt.savefig(pathFspace+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.png',bbox_inches='tight')
-                if save_eps:
-                  plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'pir'+str(pir)+'.eps',bbox_inches='tight')
-
-                plt.close()
+                  plt.close()
                 
               #print(pir,'&',np.round(KL,decimals=4),'&',np.round(pac_test_min,decimals=4),'&' , np.round(pac_true_min,decimals=4),'&',np.round(np.mean(crps),decimals=4),'&',np.round(np.sqrt(np.mean(rmse)),decimals=4), file=fTest)    #'&',np.round(emp_risk,decimals=4)
 
@@ -500,38 +501,39 @@ for current_id in range(len(datasetsM)):
             plt.savefig(pathFtime+'time_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.eps',bbox_inches='tight')
           plt.close()
 
-          plt.figure()
-          fig2, axs2 = plt.subplots(2, 2,figsize=(12,9))
-          #plt.subplots_adjust(hspace=0)
-          fig2.tight_layout()
+          if plot_space:
+            plt.figure()
+            fig2, axs2 = plt.subplots(2, 2,figsize=(12,9))
+            #plt.subplots_adjust(hspace=0)
+            fig2.tight_layout()
 
-          for i_, ax in enumerate(fig2.axes):
-            #ax.set_ylabel(str(i))
-            for j,el in enumerate(qs):
-              ax.fill_between(np.arange(1,corr_m_e_f_test.shape[0]+1),np.quantile(corr_m_e_f_test[:,:,2*i_],q=el,axis=1),np.quantile(corr_m_e_f_test[:,:,2*i_],q=1-el,axis=1),color=cmaplist[60+15*(j+1)])#,color='teal')
-              ax.plot(np.arange(1,b_test.shape[0]+1),b_test[:,2*i_],color='orange',linewidth=.5)
-              
-            #ax.annotate('average crps: '+ str(np.round(np.mean(crps[2*i],axis=0),decimals=4)) ,xy=(30,np.amax(np.quantile(m_e_f[2*i,:,:],q=.975,axis=0))-.01),fontsize='x-small')
-          
-          
-          custom_lines = [Line2D([0], [0],marker='s', color=cmaplist[60+15*(0+1)], lw=8),
-                          Line2D([0], [0],marker='s', color=cmaplist[60+15*(1+1)], lw=8),
-                          Line2D([0], [0],marker='s', color=cmaplist[60+15*(2+1)], lw=8),
-                          Line2D([0], [0],marker='s', color=cmaplist[60+15*(3+1)], lw=8),
-                          Line2D([0], [0],marker='s', color=cmaplist[60+15*(4+1)], lw=8),
-                          Line2D([0], [0],marker='s', color=cmaplist[60+15*(5+1)], lw=8),
-                          Line2D([0], [0],marker='s', color=cmaplist[60+15*(6+1)], lw=8),
-                          Line2D([0], [0],marker='s', color=cmaplist[60+15*(7+1)], lw=8),
-                          Line2D([0], [0],marker='s', color=cmaplist[60+15*(8+1)], lw=8),
-                          Line2D([0], [0],marker='s', color=cmaplist[60+15*(9+1)], lw=8),
-                          ]
-          fig2.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
-#plt.colorbar(cmaplist[-1:-20*(j+1):-20])
-          plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsname_short[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.png',bbox_inches='tight')
-          if save_eps:
-            plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.eps',bbox_inches='tight')
+            for i_, ax in enumerate(fig2.axes):
+              #ax.set_ylabel(str(i))
+              for j,el in enumerate(qs):
+                ax.fill_between(np.arange(1,corr_m_e_f_test.shape[0]+1),np.quantile(corr_m_e_f_test[:,:,2*i_],q=el,axis=1),np.quantile(corr_m_e_f_test[:,:,2*i_],q=1-el,axis=1),color=cmaplist[60+15*(j+1)])#,color='teal')
+                ax.plot(np.arange(1,b_test.shape[0]+1),b_test[:,2*i_],color='orange',linewidth=.5)
+                
+              #ax.annotate('average crps: '+ str(np.round(np.mean(crps[2*i],axis=0),decimals=4)) ,xy=(30,np.amax(np.quantile(m_e_f[2*i,:,:],q=.975,axis=0))-.01),fontsize='x-small')
+            
+            
+            custom_lines = [Line2D([0], [0],marker='s', color=cmaplist[60+15*(0+1)], lw=8),
+                            Line2D([0], [0],marker='s', color=cmaplist[60+15*(1+1)], lw=8),
+                            Line2D([0], [0],marker='s', color=cmaplist[60+15*(2+1)], lw=8),
+                            Line2D([0], [0],marker='s', color=cmaplist[60+15*(3+1)], lw=8),
+                            Line2D([0], [0],marker='s', color=cmaplist[60+15*(4+1)], lw=8),
+                            Line2D([0], [0],marker='s', color=cmaplist[60+15*(5+1)], lw=8),
+                            Line2D([0], [0],marker='s', color=cmaplist[60+15*(6+1)], lw=8),
+                            Line2D([0], [0],marker='s', color=cmaplist[60+15*(7+1)], lw=8),
+                            Line2D([0], [0],marker='s', color=cmaplist[60+15*(8+1)], lw=8),
+                            Line2D([0], [0],marker='s', color=cmaplist[60+15*(9+1)], lw=8),
+                            ]
+            fig2.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1.09, .8))#, loc="upper left")
+  #plt.colorbar(cmaplist[-1:-20*(j+1):-20])
+            plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsname_short[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.png',bbox_inches='tight')
+            if save_eps:
+              plt.savefig(pathF+'space_EF'+figure_name+str(arch) +'_' +str(datasetsM[current_id])+'a_'+str(a_val[current_id])+'pir'+str(best_prior)+'.eps',bbox_inches='tight')
 
-          plt.close()
+            plt.close()
       
       print(val_prior_row_str,' \\'+'\\'+'\n',file =fVal)#datasetsname_short[current_id],'&',arch,' '
       #print(datasetsname_short[current_id],'& ',best_prior,'& ',train_prior_row_str,' \\'+'\\'+'\n',file =fTrain)
@@ -540,12 +542,12 @@ for current_id in range(len(datasetsM)):
       range_crps_val.sort()
       #print(range_crps_val)
       #range_other_prior_str = "["+str(range_crps_val[1])+","+str(range_crps_val[-1])+"]"
-      print("& $\\mathcal{N}(0,1/"+str(best_prior)+")$ & 1000 &"+ str(np.round(best_prior_best_train_error,decimals=4))+ "& 100 &" + str(np.round(best_prior_best_test_error,decimals=4))+' \\'+'\\'+'\n',file =fValBounds)
+      ###################################print("& $\\mathcal{N}(0,1/"+str(best_prior)+")$ & 1000 &"+ str(np.round(best_prior_best_train_error,decimals=4))+ "& 100 &" + str(np.round(best_prior_best_test_error,decimals=4))+' \\'+'\\'+'\n',file =fValBounds)
       #print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&', best_prior_best_train_error,'&',best_prior_iter_train,'&',best_prior_best_test_error,'&',best_prior_iter_test,'&',best_crps_val,'&',best_rmse_val,'&',range_other_prior_str,'&',corr_crps_test,'&',corr_rmse_test, file = fTest_best_pir)  
       
       
       #print("& $",arch[0],'^',len(arch)-1,'$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  ### das vlt wieder auskommentieren
-      print("& $",arch[0],'^',len(arch)-1,'$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&', np.round(best_prior_best_test_error,decimals=4),'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  
+      ##############################print("& $",arch[0],'^',len(arch)-1,'$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&', np.round(best_prior_best_test_error,decimals=4),'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  
       arch_str = str(arch[0])+'^'+str(len(arch)-1)
       if current_id == 0:
         print("& $"+arch_str+"$ & N(0,1/"+str(best_prior)+") & "+str(np.round(corr_crps_test, decimals=4))+" & "+str(np.round(corr_rmse_test,decimals=4))+bounded_Gau[i_arch], file = fTestGau)

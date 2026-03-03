@@ -330,7 +330,7 @@ def Optimization(file_m,Z,x_size,preT,rescaling,eps,delta,data,inp,p,c,arch,dim,
       
     else:
       #if no pretraining is performed, the posterior mean is set as having variance equal to 1/4
-      rhoParams=[jnp.zeros(dim),jnp.ones(dim)*jnp.log(.25)] #jnp.ones(dim)/2
+      rhoParams=[jnp.zeros(dim),piScale]#[jnp.zeros(dim),jnp.ones(dim)*jnp.log(.25)] #jnp.ones(dim)/2
       sharded_params=jax.vmap(lambda dummy: jnp.vstack(rhoParams))(jnp.arange(shard_size))
       params= [sharded_params for el in range((x_size-2*p*c)//shard_size)]   
       piParams=[jnp.zeros(dim),piScale]
