@@ -201,8 +201,60 @@ def empirical_risk(model,batch,realization):
     return jnp.mean(eU,axis=0)
 
 
+#################################### UNBOUNDED #########################################  
 
+def target_func_unbounded_KL(piParams,rhoParams,NNsize,m):
+   return KLdiag_from_log_scale(piParams,rhoParams,NNsize)/jnp.sqrt(m)
 
+def target_func_unbouded_sampling_from_rho(A,b,realization,arch,mask,theta, VarZtrx,m,delta):#,return_lip = False): 
+  tf = empirical_risk_unbounded(A,b,realization,arch,mask)
+  realization=extract_layers(realization,mask,arch)
+  forward=lambda alpha:(ffnn_forward_pass(alpha,realization))
+  hX=jax.vmap(forward,in_axes=1)(A)
+  hX=hX.reshape((hX.shape[0]))
+  apc = A.shape[0]
+  rho_Liph = Lip_realization_masked(realization)
+  rho_Liph_sq = jnp.mean(jnp.power(rho_Liph,2))
+  abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
+  abs_E_hX = jax.vmap(abs_mean)(hX)
+  rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, rho_Liph))
+  rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
+  tf += apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
+  tf += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
+  tf += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
+  tf += rho_hXsq/(2*jnp.sqrt(m))
+  tf += theta*apc/delta * rho_Liph
+  return tf
+
+def tf_unbounded(A,b,arch,mask,theta, VarZtrx,m,delta):
+   return lambda beta: target_func_unbouded_sampling_from_rho(A,b,beta,arch,mask,theta, VarZtrx,m,delta)
+
+def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,m,delta):
+    def pozzo(params,mask,arch):
+      pozzo=[params[mask[el-1]:mask[el]].reshape((arch[el-1]+1,arch[el])) for el in range(1,len(mask))]
+      return pozzo
+    masking = lambda alpha: pozzo(alpha,mask,arch)
+    realizations=jax.vmap(masking,in_axes=0)(realizations)
+    forward=lambda alpha:(ffnn_forward_pass_several_weights(alpha,realizations))
+    hX=jax.vmap(forward,in_axes=1)(A) #(1000,5)
+    apc = A.shape[0]
+    Liphs = Lip_realizations_masked(realizations) # (5,) - passt :)
+    rho_Liph = jnp.mean(Liphs)
+    rho_Liph_sq = jnp.mean(jnp.power(Liphs,2))
+    abs_mean = lambda beta: jnp.abs(jnp.mean(beta, axis=0))
+    hX = jnp.stack(hX, axis=1)
+    abs_E_hX = jax.vmap(abs_mean)(hX)
+    rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liphs))
+    rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
+    tf = apc*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
+    tf += rho_Liph_sq*apc**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
+    tf += apc * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
+    tf += rho_hXsq/(2*jnp.sqrt(m))
+    tf += theta*apc/delta * rho_Liph # rho_Liph as an estimation for sup rho[Lip(h)]
+    constants = theta*(1+1/delta)+jnp.log(1/delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))
+    KLdivSqrtm = target_func_unbounded_KL(piParams,rhoParams,dim,m)
+    bound = tf + KLdivSqrtm + constants
+    return [bound,rho_Liph]
 
 
 

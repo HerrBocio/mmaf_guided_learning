@@ -181,3 +181,5 @@ cython_debug/
 playground.py
 
 Results
+*.mat
+playground*
