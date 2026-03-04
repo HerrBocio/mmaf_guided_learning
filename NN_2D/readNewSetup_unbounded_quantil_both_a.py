@@ -1,4 +1,4 @@
-from params import *
+from params_rhoeqpi import *
 from matplotlib.lines import Line2D
 import h5py
 from scipy.io import loadmat
@@ -223,10 +223,14 @@ for current_id in range(len(datasetsM)):
               best_bound_plus_emError_train_mean = np.array(b_g.get('min_error_sup'))
               best_bound_without_emError_train = np.array(best_e_g.get('bound_train_sup'))
               best_empError_train = np.array(best_e_g.get('train_errors'))
+              best_bound_without_emError_test = np.array(best_e_g.get("bound_test_sup"))
+              best_empError_test = np.array(best_e_g.get('test_errors'))
+              best_whole_bound_test = best_bound_without_emError_test + best_empError_test
               # 'best' meaning corresponding to the best iteration 
               print("are those arrays")
               print(best_bound_without_emError_train)
               print(best_empError_train) 
+              print("best_whole_bound_test",best_whole_bound_test)
               Lips = np.array(best_e_g.get("Lips_train"))  
               
               print("Parts of Bound for best params")
@@ -236,13 +240,13 @@ for current_id in range(len(datasetsM)):
                 rhoParams = best_params[n1-p*c,:,:]
                 rhoParams0=rhoParams[0] 
                 rhoParams1=rhoParams[1]
-                print("empirical error",best_empError_train[counter])
+                #print("empirical error",best_empError_train[counter])
                 KL_ = KLdiag_from_log_scale(piParams,best_params[n1-p*c,:,:],0)
                 #print("KL",KL_)
                 KLsqm = KL_/np.sqrt(1000)
-                print("KL/sqrt(m)", KLsqm)
-                print("apc*rho[Lip(h)]*(thetalex+Var(Z_t^r(x))/sqrt(m))")
-                print("Lip", Lips[counter]*5)
+                #print("KL/sqrt(m)", KLsqm)
+                #print("apc*rho[Lip(h)]*(thetalex+Var(Z_t^r(x))/sqrt(m))")
+                #print("Lip", Lips[counter]*5)
 
                 #print("Bound - KL/sqrt(m)", min_error_sup[n1] - KLsqm)
 
@@ -284,10 +288,10 @@ for current_id in range(len(datasetsM)):
                     print("...to ",best_prior)
                     best_prior_best_train_error = best_bound_plus_emError_train_mean
                     best_prior_iter_train = best_iter
-                    #best_prior_best_test_error = best_whole_bound_test
+                    best_prior_best_test_error = np.mean(best_whole_bound_test)
                     #best_prior_iter_test = best_iter_test
                     best_rmse_val = np.mean(np.sqrt(rmse))
-                    best_prior_emp_train_error = best_empError_train
+                    best_prior_emp_train_error = np.mean(best_empError_train)
                     best_params_bestpir = best_params
 
 
@@ -542,12 +546,12 @@ for current_id in range(len(datasetsM)):
       range_crps_val.sort()
       #print(range_crps_val)
       #range_other_prior_str = "["+str(range_crps_val[1])+","+str(range_crps_val[-1])+"]"
-      ###################################print("& $\\mathcal{N}(0,1/"+str(best_prior)+")$ & 1000 &"+ str(np.round(best_prior_best_train_error,decimals=4))+ "& 100 &" + str(np.round(best_prior_best_test_error,decimals=4))+' \\'+'\\'+'\n',file =fValBounds)
+      print("& $\\mathcal{N}(0,1/"+str(best_prior)+")$ & 1000 &"+ str(np.round(best_prior_best_train_error,decimals=4))+ "& 100 &" + str(np.round(best_prior_best_test_error,decimals=4))+' \\'+'\\'+'\n',file =fValBounds)
       #print(datasetsname_short[current_id],'&',arch,'&',best_prior,'&', best_prior_best_train_error,'&',best_prior_iter_train,'&',best_prior_best_test_error,'&',best_prior_iter_test,'&',best_crps_val,'&',best_rmse_val,'&',range_other_prior_str,'&',corr_crps_test,'&',corr_rmse_test, file = fTest_best_pir)  
       
       
       #print("& $",arch[0],'^',len(arch)-1,'$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  ### das vlt wieder auskommentieren
-      ##############################print("& $",arch[0],'^',len(arch)-1,'$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&', np.round(best_prior_best_test_error,decimals=4),'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  
+      print("& $",arch[0],'^',len(arch)-1,'$ & $\\mathcal{N}(0,1/',best_prior,')$ &',1000,'&',np.round(KL_train_best_iter,decimals=4) ,'&',np.round(Liph_train_best_iter,decimals=4),'&',np.round(best_prior_emp_train_error,decimals=4),'&', np.round(best_prior_best_train_error,decimals=4),'&',1,'&',np.round(best_crps_val,decimals=4),'&',np.round(best_rmse_val,decimals=4),'&',100,'&', np.round(best_prior_best_test_error,decimals=4),'&',np.round(corr_crps_test,decimals=4),'&',np.round(corr_rmse_test,decimals=4),"\\"+"\\"+"\n", file = fMMAF)  
       arch_str = str(arch[0])+'^'+str(len(arch)-1)
       if current_id == 0:
         print("& $"+arch_str+"$ & N(0,1/"+str(best_prior)+") & "+str(np.round(corr_crps_test, decimals=4))+" & "+str(np.round(corr_rmse_test,decimals=4))+bounded_Gau[i_arch], file = fTestGau)
@@ -558,6 +562,7 @@ for current_id in range(len(datasetsM)):
     #print('\n\\cmidrule{3-25}\n',file=fTrain)
     #print('\n\\cmidrule{3-25}\n',file=fVal)
     #print('\n\\cmidrule{3-25}\n',file=fMMAF)
+  print('\\midrule\n\\midrule\n', file=fKL)
   print('\\midrule\n\\midrule\n', file=fTrain)
   print('\\midrule\n\\midrule\n', file=fVal)
   print('\\midrule\n\\midrule\n', file=fValBounds)
