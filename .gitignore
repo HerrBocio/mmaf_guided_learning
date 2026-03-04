@@ -9,7 +9,7 @@ __pycache__/
 # Data
 *.nc
 *.h5
-
+*.npy
 # Distribution / packaging
 .Python
 build/
