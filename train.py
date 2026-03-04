@@ -65,7 +65,6 @@ def default_config(hparams):
   if config.data.name == 'Gaudiamonddata1A4mln' or config.data.name== 'NIGdiamonddata1A4mln':
       config.data.epochs = 60
       config.data.m_batch=1000
-      config.data.Ncones_test = 100
       config.data.num_coords = 8
       config.data.val_start_idx = int(0.999192001*1000001)
       #config.data.test_start_idx=int(0.999192001*1000001)
@@ -75,7 +74,6 @@ def default_config(hparams):
   elif config.data.name =='OLR_full':
       config.data.epochs = 5000
       config.data.m_batch= 36
-      config.data.Ncones_test = 18
       config.data.num_coords = 8
       config.data.val_start_idx = int(3520*0.65625) 
       config.data.slope = 0.012402022841533814 
@@ -126,17 +124,17 @@ def coordit(model,optimizer,params,batch,opt_state,rng):
 
 def train():
 
-  width=[800,300,100,30,10,10]
-  depth=[3,2,2,2,5,2]
-  shard_size=[4,8,8,8,8,8]
-  priors=[1./10,1./30,1./50,1./70,1./90,1./110,1./130,1./150,1./170,1./190,1./210]
+  width=[300,100,30,10,10,800]
+  depth=[2,2,2,5,2,3]
+  shard_size=[8,8,8,8,8,2]
+  priors=[10,30,50,70,90,110,130,150,170,190,210]
+  #[1./10,1./30,1./50,1./70,1./90,1./110,1./130,1./150,1./170,1./190,1./210]
   for i in range(len(width)):
     for pi in priors:
       print('set', width[i],pi)
-      hparams = get_hparams(width_default=width[i],depth_default=depth[i],prior_var_default=pi,shard_size_default=shard_size[i])
+      hparams = get_hparams(width_default=width[i], depth_default=depth[i], prior_var_default=pi, shard_size_default=shard_size[i])
       hparams = vars(hparams)
       config = default_config(hparams)
-      #print(config.data.name)
       embedding = Embedding(config)
       embedding.embedded_data()
     
@@ -144,23 +142,16 @@ def train():
       
       model = Model(config)
       model.Lip=LipC(model)
-      #ugly...
+      
       model.delta=config.hparams.delta
     
       optimizer = adam(config.lr)
       model.opt_state_grid = [jax.vmap(optimizer.init)(model.sharded_params) for el in range(config.data.num_coords//config.shard_size)]
-    
       
-      
-    
-      # TODO METRICS CLASS
-      
-      
-      min_it=0 #will store the epoch index containing the best performing parameters
+      min_it=0 
       min_error=jnp.inf
       milestone_seeds=[]
     
-      #initialization of data structures containing optimization history
       val_jest_epoch= jnp.empty((0,config.data.num_coords,embedding.Nbatches))
       val_grad_epoch= jnp.empty((0,config.data.num_coords,embedding.Nbatches))
     
@@ -168,16 +159,14 @@ def train():
       pac_epoch  = jnp.empty((0,config.data.num_coords))
       for epoch in trange(1,config.data.epochs+1, desc='epochs', colour='green'):
     
-          #print(config.data.num_coords)
           train_stacked = jnp.array([])
           pac_stacked = jnp.array([])
       
-          val_jest_stacked =jnp.empty((0,embedding.Nbatches)) #jnp.empty((embedding.Ncones//config.data.m_batch))
-          val_grad_stacked =jnp.empty((0,embedding.Nbatches)) # jnp.empty((embedding.Ncones//config.data.m_batch))
+          val_jest_stacked =jnp.empty((0,embedding.Nbatches)) 
+          val_grad_stacked =jnp.empty((0,embedding.Nbatches)) 
           for ds_idx,data_shard in enumerate(embedding.clean_data):
               val_jest_batch =  jnp.empty((config.shard_size,0)) 
               val_grad_batch =  jnp.empty((config.shard_size,0)) 
-              #print(data_shard.shape)
               for batch_idx,batch in enumerate(data_shard):
     
                   key = jax.random.PRNGKey((batch_idx+1)*(ds_idx+1)*epoch)
@@ -185,14 +174,9 @@ def train():
                   opt_mapping = jax.vmap(lambda alpha,beta,gamma,phi: coordit(model,optimizer,alpha,beta,gamma,phi),in_axes=(0,0,0,0))
                   
                   [model.params[ds_idx],model.opt_state_grid[ds_idx],val_jest,val_grad]= opt_mapping(model.params[ds_idx],batch, model.opt_state_grid[ds_idx], keys[ds_idx])
-                  #print('val',val_jest.shape,val_jest_batch.shape,val_jest_stacked.shape)
     
-                  #val_jest_batch.append(val_jest)
-                  #val_grad_batch.append(val_grad)
                   val_jest_batch=jnp.hstack([val_jest_batch,val_jest.reshape(config.shard_size,1)])
                   val_grad_batch=jnp.hstack([val_grad_batch,val_grad.reshape(config.shard_size,1)])
-              #val_jest_batch=jnp.array(val_jest_batch)#.transpose()
-              #val_grad_batch=jnp.array(val_grad_batch)#.transpose()
               val_jest_stacked=  jnp.vstack([val_jest_stacked,val_jest_batch])
               val_grad_stacked=  jnp.vstack([val_grad_stacked,val_grad_batch])
 
@@ -201,12 +185,11 @@ def train():
                 dist_mapped = lambda alpha,beta: dist_sample(alpha,config.shard_realization,beta)
                 
                 key = jax.random.PRNGKey((batch_idx+1)*(el+1)*(ds_idx+1)*epoch)
-                #keys = [jax.random.split(key*(j+1), config.shard_size).reshape(config.shard_size,2) for j in range(config.data.num_coords//config.shard_size)]
                 
                 realization = vmap(dist_mapped)(model.params[ds_idx],keys[ds_idx])
                 train_shard_realization = lambda alpha,beta: l_empirical_risk(model,alpha)(beta)
                 train_shard_realization = vmap(train_shard_realization)(batch,realization)
-                train_shard=jnp.hstack([train_shard,train_shard_realization.reshape(config.shard_size,1)])
+                train_shard =jnp.hstack([train_shard,train_shard_realization.reshape(config.shard_size,1)])
               
               train_shard=jnp.mean(train_shard,axis=1)
               
@@ -228,7 +211,12 @@ def train():
 
       output = {
         "data_name": config.data.name,
-        "prior": pi,
+        "a_val": embedding.a,
+        "rescaling" : 
+        {
+            "slope": config.data.slope,
+            "quota": config.data.q
+        },
         "model": model,
         "best_training" :
         {
@@ -245,7 +233,7 @@ def train():
         "data_test":embedding.clean_data_test
       }
         
-      with open(config.PATH_MOD+config.data.name+'['+str(config.model.width)+'^'+str(config.model.depth)+']_'+str(int(1./config.model.prior_var))+'_'+str(embedding.a)+".pkl", "wb") as f:
+      with open(config.PATH_MOD+config.data.name+'['+str(config.model.width)+'^'+str(config.model.depth)+']_'+str(config.model.prior_var)+'_'+str(embedding.a)+".pkl", "wb") as f:
         pickle.dump(output, f)
 
 

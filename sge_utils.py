@@ -1,7 +1,8 @@
-from jax import grad,vmap
+from jax import grad,vmap,jit
 import jax.numpy as jnp
 import jax.random
 from utils import KLdiag_from_log_scale
+from functools import partial
 
 class MyMultiNormalDiagFromLogScale:	
 #to be placed in a specific script (collect other distros?)
@@ -21,7 +22,7 @@ class MyMultiNormalDiagFromLogScale:
     '''
     
     self._var = jnp.exp(nu)
-    self._log_scale = nu 
+    self._log_scale = nu
     self._mean = loc
     self._param_shape = self._mean.shape
     self.seed=seed
@@ -46,14 +47,14 @@ class MyMultiNormalDiagFromLogScale:
     return jnp.sum(log_prob)
     
 
-def my_multi_normal(key,*params,) :
+def my_multi_normal(key,*params) :
   '''
   Function that instantiates the class MyMultiNormalDiagFromLogScale 
   '''
   return MyMultiNormalDiagFromLogScale(loc=params[0],nu=params[1],seed=key)#, scale=jnp.diag(params[1]))
 
 
-
+#@partial(jit, static_argnums=(0,2))
 def sge_pwj(score_function,params,dist_builder,rng,num_samples=1):
 
   '''

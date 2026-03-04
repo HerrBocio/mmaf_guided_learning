@@ -1,13 +1,15 @@
 import pickle
 import os
 from metrics import Metrics
+from jax.numpy import inf
+from plots import mmaf_plot
 
 def load_pickle_file(filepath):
     """
     loads the pickle file.
     """
     if not os.path.exists(filepath):
-        raise FileNotFoundError(f"File non trovato: {filepath}")
+        raise FileNotFoundError(f"File not found: {filepath}")
 
     with open(filepath, "rb") as f:
         data = pickle.load(f)
@@ -46,43 +48,43 @@ def inspect_output_structure(output):
 if __name__ == "__main__":
 
     # Validation
-    width=[800,300,100,30,10,10]
-    depth=[3,2,2,2,5,2]
-    priors=[1./10,1./30,1./50,1./70,1./90,1./110,1./130,1./150,1./170,1./190,1./210]
+    width=[800]#,300,100,30,10,10]
+    depth=[3,2,2,2,2,5]
+    priors=[10,30,50,70,90,110,130,150,170,190,210]
     Ndraws=50
-    filename="Gaudiamonddata1A4mln"
-    lowest_mean=+jnp.inf
-    lowest_prior=0
+    filename="OLR_full"
+    
     for i in range(len(width)):
+      lowest_mean=inf
+      lowest_prior=0
       for pi in priors:
         print('\n\n\t\tset', width[i],pi)
-        #filepath = "output/model/Gaudiamonddata1A4mln[800^3]_10_8.pkl"
-        filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(1./pi))+'_'+str(8)+".pkl"
+        filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(pi)+'_'+str(64)+".pkl"
     
         output = load_pickle_file(filepath)
     
         #inspect_output_structure(output)
 
+        
         model = output["model"]
-        print('len',model.best_params[0].shape)
-        metrics=Metrics(model,output['data_test'],Ndraws)
+        metrics=Metrics(model,output['data_test'],Ndraws,filename)
         metrics.multi_ef()
         metrics.crps_univ_rank()
-        mertrics.rmse_univ()
-        print(metrics.crps_val.shape,metrics.crps_test.shape)
+        metrics.rmse_univ_rank()
 
         if metrics.crps_val_mean<lowest_mean:
+          print('aggiornamento',pi,lowest_mean,metrics.crps_val_mean)
           lowest_mean=metrics.crps_val_mean
           lowest_prior=pi
 
           
     # Test for validated best metrics
-      filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(1./lowest_prior))+'_'+str(8)+".pkl"
+      filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(lowest_prior)+'_'+str(64)+".pkl"
 
       output = load_pickle_file(filepath)
       validated_model = output["model"]
       validated_metrics=Metrics(model,output['data_test'],Ndraws,filename)
-      metrics.multi_ef()
-      metrics.crps_univ_rank()
-      
+      validated_metrics.multi_ef()
+      validated_metrics.crps_univ_rank()
+      mmaf_plot(validated_metrics,lowest_prior,width[i],depth[i])
       

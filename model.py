@@ -19,7 +19,7 @@ class Model():
       self.mask = self.mask_gen()
   
       prior_mean = jnp.ones(dim)*config.model.prior_mean
-      prior_log_scale =jnp.ones(dim)*jnp.log(config.model.prior_var)/2
+      prior_log_scale =jnp.ones(dim)*(-jnp.log(config.model.prior_var)/2)
 
       self.pi_params= [prior_mean,prior_log_scale]
     
@@ -101,7 +101,6 @@ class Model():
   
   def ffnnV(self, inp:jnp.array, weights:list):
 
-      print('inp',inp.shape)
       parPozzo=lambda alpha: self.pozzo(alpha)
       weights=vmap(parPozzo)(weights)
   

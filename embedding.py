@@ -19,8 +19,9 @@ class Embedding():
         self.data_name=config.data.name
         
         self.num_coords=config.data.num_coords
-        self.Ncones_test=config.data.Ncones_test
-        
+      
+        self.slope=config.data.slope
+        self.q = config.data.q
 
     def gather_1d(self,data, indices):
         flat_idx=jnp.ravel_multi_index(indices.T,data.shape)#,order='F')
@@ -173,7 +174,7 @@ class Embedding():
       
       self.c=int(np.floor(hatc))
         
-      data=data[:self.num_coords+2*self.c*self.p,:]
+      data=data[:self.num_coords+2*self.c*self.p,:]*self.slope+self.q
         
       print(lambda_,self.A,hatc)
 

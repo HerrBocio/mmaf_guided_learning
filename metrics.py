@@ -10,10 +10,8 @@ class Metrics():
     data_=jnp.empty((0,data[0].shape[-2],data[0].shape[-1]))
     params_=jnp.empty((0,model.best_params[0].shape[-2],model.best_params[0].shape[-1]))
     for par,el in zip(model.best_params,data):
-      print(par.shape,el.shape)
       data_=jnp.vstack([data_,el])
       params_=jnp.vstack([params_,par])
-    print('data shape',data_.shape)
     self.filename=filename
     self.data_val = data_[:,:,0].reshape(data_.shape[0],data_.shape[1],1)
     self.data_test= data_[:,:,1:]
@@ -27,22 +25,24 @@ class Metrics():
     
   def multi_ef_mapped(self,data,params,rng):
   
-    print('dataval',data.shape) 
     w=dist_sample(params,self.Ndraws,seed=key(rng))    
     out=vmap(lambda alpha : self.model.ffnnV(alpha,w),in_axes=(1))
     ef= out(data)
-    print('ef',ef.shape)
+    print(ef.shape)
     return ef.reshape((ef.shape[0],ef.shape[-1]))
 
   
   def crps_univ_rank(self):
 
-      time_map = lambda alpha,beta: vmap(self.crps_univ_rank_mapped,in_axes=(0,0))(alpha,beta)
+      time_map = lambda alpha,beta: vmap(self.crps_univ_rank_mapped)(alpha,beta)
       space_map=lambda alpha,beta : vmap(time_map)(alpha,beta) 
       self.crps_val = space_map(self.data_val[:,-1,:],self.ef_val)
       self.crps_val_mean=jnp.mean(self.crps_val,axis=0)
       self.crps_test= space_map(self.data_test[:,-1,:],self.ef_test)
       self.crps_test_mean=jnp.mean(self.crps_test,axis=0)
+    
+      print(self.crps_val.shape)
+      print(self.crps_val_mean.shape)
 
   def crps_univ_rank_mapped(self,y, x):
   
@@ -55,7 +55,7 @@ class Metrics():
   def rmse_univ_rank(self):
 
       time_map = lambda alpha,beta: vmap(self.rmse_univ,in_axes=(0,0))(alpha,beta)
-      space_map=lambda alpha,beta : vmap(time_mapped)(alpha,beta) 
+      space_map=lambda alpha,beta : vmap(time_map)(alpha,beta) 
       self.rmse_val = space_map(self.data_val[:,-1,:],self.ef_val)
       self.rmse_test= space_map(self.data_test[:,-1,:],self.ef_test)
   

@@ -85,7 +85,7 @@ def dist_sample(rhoP,num_realizations=1,seed=1):
     '''
     
     sample_shape = (num_realizations,*rhoP[0].shape) 
-    sam=random.normal(seed, shape=sample_shape) * jnp.exp(rhoP[1]/2) + rhoP[0]
+    sam=random.normal(seed, shape=sample_shape) * jnp.exp(rhoP[1]) + rhoP[0]
 
     return sam
 
@@ -106,7 +106,7 @@ def chi2_diag_gaussians(piParams,rhoParams):
     denom = var_p * (2*var_q - var_p)
     Ii = var_q / jnp.sqrt(denom) * jnp.exp(delta2 / (2*var_q - var_p))
     prod = jnp.prod(Ii)
-    return prod 
+    return prod - 1
 
 
 
@@ -163,7 +163,6 @@ def KLdiag_from_log_scale(piParams,rhoParams,NNsize):
     piParams1=piParams[1] 
     rhoParams0=rhoParams[0] 
     rhoParams1=rhoParams[1]
-    #print(rhoParams0.shape,piParams1.shape)
     inv=lambda beta: 1./beta
     kl= jnp.sum(jnp.exp(rhoParams1-piParams1)-1)
     diff=piParams0-rhoParams0
@@ -212,7 +211,6 @@ def LipC(model,shard_size=int(1e2),N=int(1e3)):
       return prod
     L=0
     for el in range(N//shard_size):
-      #print(el.shape)
       realizations = dist_sample(model.pi_params,num_realizations=shard_size,seed=random.key(el))
       w=vmap(parPozzo)(realizations)
       
