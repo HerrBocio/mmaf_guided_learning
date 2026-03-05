@@ -207,7 +207,7 @@ def target_func_unbounded_KL(piParams,rhoParams,NNsize,m):
    return KLdiag_from_log_scale(piParams,rhoParams,NNsize)/jnp.sqrt(m)
 
 def target_func_unbouded_sampling_from_rho(A,b,realization,arch,mask,theta, VarZtrx,m,delta):#,return_lip = False): 
-  tf = empirical_risk_unbounded(A,b,realization,arch,mask)
+  tf = empirical_risk(A,b,realization,arch,mask)
   realization=extract_layers(realization,mask,arch)
   forward=lambda alpha:(ffnn_forward_pass(alpha,realization))
   hX=jax.vmap(forward,in_axes=1)(A)

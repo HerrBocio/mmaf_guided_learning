@@ -10,13 +10,14 @@ from model import Model
 import argparse
 from embedding import Embedding
 import pickle
+import math
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'#,2,3'
 os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
 
 
-def get_hparams(eps_default=3, ht_default=1, delta_default=0.025, p_default=1, shard_size_default=1, data_name_default='Gaudiamonddata1A4mln', width_default=10, depth_default=2, init_mean_default=0, init_var_default=.25, prior_mean_default=0, prior_var_default=.1):
+def get_hparams(eps_default=math.inf, ht_default=1, delta_default=0.025, p_default=1, shard_size_default=1, data_name_default='Gaudiamonddata1A4mln', width_default=10, depth_default=2, init_mean_default=0, init_var_default=.25, prior_mean_default=0, prior_var_default=.1):
 
   # hyperparameters for mmaf
   parser = argparse.ArgumentParser(description='Entry point of the code')
@@ -107,20 +108,40 @@ def coordit_unbounded(model,optimizer,params,batch,opt_state,rng):
   '''
   Core function for the optimization: performs the gradient step and updates the parameters for each spatial coordinate at the current batch iteration
   '''
-  scorf=l_empirical_risk(model,batch)#batch[:-1,:],batch[-1,:])
+  theta = model.thetatilder
+  VarZtrx = model.truncated_covs_between_all_members_of_cone()[1][0][0]
+  scorf=tf_unbounded(model,batch,theta,VarZtrx,m,delta)
 
-  pac_mapped = lambda alpha: pac_approx(model,alpha,batch[-1].shape[0])
-  val_grad=pac_mapped(params)
-  grad= jax.grad(pac_mapped)(params)
-  
+  #computes the second term of the obj function (containing the divergence terms)
+  kl_mapped = lambda beta: target_func_unbounded_KL(piParams,beta,dim,m)
+  #stochastic gradient estimator for the gradient of the expected empirical risk
   val_jest,jest = sge_pwj(scorf,params,my_multi_normal,rng)
-  
+        
+  #computes the value and the gradient (using jax.grad) of the second term of the objective function
+  val_grad=kl_mapped(params)
+  grad= jax.grad(kl_mapped)(params)
+
+  #updates the parameter via Adam update rule      
   updates = jest+grad
   updates, opt_state = optimizer.update(updates,opt_state,params)  
   params = apply_updates(params,updates)
+
+
+
+
+  # scorf=l_empirical_risk(model,batch)#batch[:-1,:],batch[-1,:])
+
+  # pac_mapped = lambda alpha: pac_approx(model,alpha,batch[-1].shape[0])
+  # val_grad=pac_mapped(params)
+  # grad= jax.grad(pac_mapped)(params)
+  
+  # val_jest,jest = sge_pwj(scorf,params,my_multi_normal,rng)
+  
+  # updates = jest+grad
+  # updates, opt_state = optimizer.update(updates,opt_state,params)  
+  # params = apply_updates(params,updates)
   
   return [params,opt_state,val_jest,val_grad]
-
 
 
 

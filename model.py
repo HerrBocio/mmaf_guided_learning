@@ -2,6 +2,7 @@ import jax.numpy as jnp
 from jax import vmap, jit
 from utils import dimComp
 from functools import partial
+import numpy as np
 
 class Model():
 
@@ -107,3 +108,55 @@ class Model():
   
       forward=lambda alpha: self.ffnn_forward_pass(inp,alpha)
       return jnp.transpose(vmap(forward)(weights))
+
+  @partial(jit, static_argnums=0)
+  def truncated_cov(self, u, tau):
+        """
+        returns Cov(Z_t(x)^(r), Z_{t+tau}(x+u)^(r)) = Var(Lambda') exp(-Au) int_{A_0(0)\V_{(0,0)}^r \cap A_{tau}(u)\V__{(tau,u)}^r} exp(2As) ds
+        """
+         # the formula below works for tau<=0, u in |R. If tau>0, we have to set tau=-tau, u=-u, as Cov(Z_tau(u)^r, Z_0(0)^r) = Cov(Z_0(0)^r, Z_{-tau}(-u)^r) because of stationarity
+        if tau > 0:
+            tau = -tau
+            u = -u
+        #r = a-p
+        if tau <= -self.r:
+            return 0
+        int = self.c_/self.A_ * (-np.exp(-2*self.A_*self.r)*(tau+self.r+1/(2*self.A_)) + np.exp(2*self.A_*tau)/(2*self.A_))
+
+        return self.VarLevySeed_ * np.exp(-self.A_*u) * int
+  
+  @partial(jit, static_argnums=0)
+  def truncated_covs_between_all_members_of_cone(self):
+    """
+    returns: TODO truncated
+        covs_XY: a vector containing the covariances between the apex of the cone Y_i and X_i^{(j)}, j=1,...,a(p,c)
+        covs_XX: a matrix containing Cov(X_i^{(j)},X_i^{(k)}) for all j,k = 1,...,a(p,c)
+    """
+    distances_XY = []
+    for t in reversed(range(self.p)): # t+1 in {p, p-1, p-2, ..., 1}
+        bt = np.floor(self.c_*(t+1)*self.h_t/self.h_s) # b:= argmax {a: a*h_s <= (t+1)*c*h_t}
+        distances_XY.append(jnp.array([[v, -self.h_t*(t+1)] for v in jnp.arange(-bt*self.h_s, (bt+1)*self.h_s, self.h_s)])) # [spatial pos, temporal pos]
+    distances_XY = jnp.concat(distances_XY, axis=0)
+    covs_XY = jnp.array([self.truncated_cov(u=dist[0], tau=dist[1]) for dist in distances_XY])
+
+    distances_XX = []
+    covs_XX = []
+    for t in range(self.p,0,-1): # t in {p, p-1, p-2, ..., 1}
+        bt = int(np.floor(self.c_*t*self.h_t/self.h_s)) # bt:= argmax {a: a*h_s <= (t+1)*c*h_t}
+        for pixel1 in jnp.arange(-bt*self.h_s,(bt+1)*self.h_s, self.h_s):
+            dist_row = []
+            cov_row = []
+            for s in range(self.p,0,-1):
+                bs = int(np.floor(self.c_*s*self.h_t/self.h_s))
+                for pixel2 in jnp.arange(-bs*self.h_s, (bs+1)*self.h_s, self.h_s):
+                    dist_row.append([float(pixel1-pixel2), -self.h_t*(t-s)])
+                    cov_row.append(self.truncated_cov(u = float(pixel1-pixel2), tau = -self.h_t*(t-s)))
+            distances_XX.append(dist_row)
+            covs_XX.append(cov_row)
+    covs_XX = jnp.array(covs_XX)
+    
+    return covs_XY, covs_XX
+
+  @partial(jit, static_argnums=0)
+  def calc_covs(self):
+    self.covs = self.truncated_covs_between_all_members_of_cone()
