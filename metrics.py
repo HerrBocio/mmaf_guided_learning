@@ -2,6 +2,7 @@ import jax.numpy as jnp
 from utils import dist_sample
 from jax import vmap
 from jax.random import key
+#from STOUNewSetup import ffnnV
 
 class Metrics():
 
@@ -10,6 +11,7 @@ class Metrics():
     data_=jnp.empty((0,data[0].shape[-2],data[0].shape[-1]))
     params_=jnp.empty((0,model.best_params[0].shape[-2],model.best_params[0].shape[-1]))
     for par,el in zip(model.best_params,data):
+      print(par.shape,el.shape)
       data_=jnp.vstack([data_,el])
       params_=jnp.vstack([params_,par])
     self.filename=filename
@@ -19,33 +21,55 @@ class Metrics():
     self.Ndraws=Ndraws
     self.params=params_
   
+  '''
+  def multi_ef_test(self,test_cones,params,Ndraws=1000,Ncones_test=100,rng=60):
+    
+        w=dist_sample([params[0],params[1]],Ndraws,seed=key(rng))    
+        out=lambda A : ffnnV(A,self.model.arch,self.model.mask,w)
+        
+        m_e_f = vmap(out)(jnp.transpose(test_cones))
+        m_e_f = m_e_f.reshape((Ndraws,Ncones_test))
+        print('mef',m_e_f.shape)
+        
+        return m_e_f
+
+
+  def multi_ef_test_new(self):
+    ef=jnp.empty((0,self.Ndraws,100))
+    
+    for j in range(self.data_test.shape[0]):
+       coord_ef=self.multi_ef_mapped(self.data_test[j,:-1,:],self.params[j,:,:])
+       ef=jnp.vstack([ef,coord_ef.reshape((1,*coord_ef.shape))])
+    
+    self.ef_test=ef
+  '''
+
   def multi_ef(self):
+    #print('in ef')
     self.ef_val=vmap(self.multi_ef_mapped,in_axes=(0,0,0))(self.data_val[:,:-1,:],self.params,jnp.arange(self.data_val.shape[0]))
     self.ef_test=vmap(self.multi_ef_mapped,in_axes=(0,0,0))(self.data_test[:,:-1,:],self.params,jnp.arange(self.data_test.shape[0]))
-    
-  def multi_ef_mapped(self,data,params,rng):
+   
+  def multi_ef_mapped(self,data,params,rng=60):
   
+    #print('dataval',data.shape) 
     w=dist_sample(params,self.Ndraws,seed=key(rng))    
     out=vmap(lambda alpha : self.model.ffnnV(alpha,w),in_axes=(1))
     ef= out(data)
-    print(ef.shape)
-    return ef.reshape((ef.shape[0],ef.shape[-1]))
-
+    #print('ef',ef.shape)
+    return ef.reshape((ef.shape[-1],ef.shape[0]))
+  
   
   def crps_univ_rank(self):
 
-      time_map = lambda alpha,beta: vmap(self.crps_univ_rank_mapped)(alpha,beta)
+      time_map = lambda alpha,beta: vmap(self.crps_univ_rank_mapped,in_axes=(0,1))(alpha,beta)
       space_map=lambda alpha,beta : vmap(time_map)(alpha,beta) 
       self.crps_val = space_map(self.data_val[:,-1,:],self.ef_val)
       self.crps_val_mean=jnp.mean(self.crps_val,axis=0)
       self.crps_test= space_map(self.data_test[:,-1,:],self.ef_test)
       self.crps_test_mean=jnp.mean(self.crps_test,axis=0)
-    
-      print(self.crps_val.shape)
-      print(self.crps_val_mean.shape)
 
   def crps_univ_rank_mapped(self,y, x):
-  
+    
       M=x.shape[0]
       double_sum = vmap(lambda beta: vmap(jnp.abs)(beta-x))
       double_sum = jnp.sum(double_sum(x))
@@ -54,7 +78,7 @@ class Metrics():
 
   def rmse_univ_rank(self):
 
-      time_map = lambda alpha,beta: vmap(self.rmse_univ,in_axes=(0,0))(alpha,beta)
+      time_map = lambda alpha,beta: vmap(self.rmse_univ,in_axes=(0,1))(alpha,beta)
       space_map=lambda alpha,beta : vmap(time_map)(alpha,beta) 
       self.rmse_val = space_map(self.data_val[:,-1,:],self.ef_val)
       self.rmse_test= space_map(self.data_test[:,-1,:],self.ef_test)
@@ -62,4 +86,3 @@ class Metrics():
   
   def rmse_univ(self,y,x):
       return jnp.mean((x-y)**2)
-  

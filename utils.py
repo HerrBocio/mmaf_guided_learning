@@ -1,5 +1,6 @@
 import numpy as np
 from jax import random,vmap
+import jax
 import jax.numpy as jnp
 from os import path,makedirs
 
@@ -19,7 +20,7 @@ def get_workspace():
     file = path.dirname(cur_path)
     file = path.dirname(file)
     return file
-ws =  get_workspace() + '/mmaf'
+ws =  get_workspace() + '/mmaf_dev'
 
 
 def mask_gen(inp,arch):
@@ -85,7 +86,7 @@ def dist_sample(rhoP,num_realizations=1,seed=1):
     '''
     
     sample_shape = (num_realizations,*rhoP[0].shape) 
-    sam=random.normal(seed, shape=sample_shape) * jnp.exp(rhoP[1]) + rhoP[0]
+    sam=jax.random.normal(seed, shape=sample_shape) * jnp.exp(rhoP[1]/2) + rhoP[0]
 
     return sam
 
@@ -110,38 +111,6 @@ def chi2_diag_gaussians(piParams,rhoParams):
 
 
 
-
-def KLdiag(piParams,rhoParams,NNsize):
-    
-    '''
-    computes the KL divergence for two multivariate gaussians, with respect to variance
-    
-
-    Parameters
-    ----------
-    piParams: parameters of the reference distribution
-    rhoParams: parameters of the generalised posterior distribution
-      
-    Returns
-    kl: computation of the divergence
-    -------
-    
-    '''
-    
-    piParams0=piParams[0]
-    piParams1=piParams[1]
-    rhoParams0=rhoParams[0]
-    rhoParams1=rhoParams[1]
-    inv=lambda beta: 1./beta
-    kl=jnp.dot(vmap(inv)(piParams1),rhoParams1) 
-    kl= kl - NNsize
-    diff=piParams0-rhoParams0
-    prod=lambda a,b: a*b
-    kl= kl + jnp.dot(diff,vmap(prod)(vmap(inv)(piParams1),diff)) 
-    kl=kl + jnp.sum(vmap(jnp.log)(piParams1)) 
-    kl=kl - jnp.sum(vmap(jnp.log)(rhoParams1)) 
-    return kl
-    
 
 def KLdiag_from_log_scale(piParams,rhoParams,NNsize):
     

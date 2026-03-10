@@ -22,7 +22,7 @@ class MyMultiNormalDiagFromLogScale:
     '''
     
     self._var = jnp.exp(nu)
-    self._log_scale = nu
+    self._log_scale = nu/2
     self._mean = loc
     self._param_shape = self._mean.shape
     self.seed=seed
@@ -32,7 +32,6 @@ class MyMultiNormalDiagFromLogScale:
     '''
     Method for sampling sample_size times from the distribution
     '''
-    
     subkeys=jax.random.split(self.seed,num=sample_size)
     sample_shape = (sample_size,self._param_shape[0])
     sam=vmap(lambda k : jax.random.normal(k, shape=sample_shape) * jnp.exp(self._log_scale) + (self._mean) )(subkeys)
@@ -83,7 +82,7 @@ def sge_pwj(score_function,params,dist_builder,rng,num_samples=1):
   #traced=jax.jit(grad(surrogate)).trace(params)
   #lowered=traced.lower()
   #compiled=lowered.compile()
-  #print('flops ER\n\t', compiled.cost_analysis())
+  #print('flops ER\n\t', compiled.cost_analysis()[0]['flops'])
   grad_=grad(surrogate)(params)
   return [val_,grad_]
 

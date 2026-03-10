@@ -52,7 +52,7 @@ def default_config(hparams):
   #config.PATH_FORECAST = ws + '/output/forecast/'
 
   config.shard_size=hparams['shard_size']
-  config.lr=0.01
+  config.lr=0.005
   config.num_realizations=int(1e3)
   config.shard_realization=int(1e2)
   
@@ -105,12 +105,18 @@ def coordit(model,optimizer,params,batch,opt_state,rng):
   '''
   Core function for the optimization: performs the gradient step and updates the parameters for each spatial coordinate at the current batch iteration
   '''
-  scorf=l_empirical_risk(model,batch)#batch[:-1,:],batch[-1,:])
+  
 
   pac_mapped = lambda alpha: pac_approx(model,alpha,batch[-1].shape[0])
   val_grad=pac_mapped(params)
+  #traced=jax.jit(jax.grad(pac_mapped)).trace(params)
+  #lowered=traced.lower()
+  #compiled=lowered.compile()
+  #print('flops pac\n\t', compiled.cost_analysis()[0]['flops'])	#['flops']
+  #stochastic gradient estimator for the gradient of the expected empirical risk
   grad= jax.grad(pac_mapped)(params)
-  
+
+  scorf=l_empirical_risk(model,batch)
   val_jest,jest = sge_pwj(scorf,params,my_multi_normal,rng)
   
   updates = jest+grad
@@ -124,8 +130,8 @@ def coordit(model,optimizer,params,batch,opt_state,rng):
 
 def train():
 
-  width=[300,100,30,10,10,800]
-  depth=[2,2,2,5,2,3]
+  width=[10,10,30,100,300,800]
+  depth=[2,5,2,2,2,3]
   shard_size=[8,8,8,8,8,2]
   priors=[10,30,50,70,90,110,130,150,170,190,210]
   #[1./10,1./30,1./50,1./70,1./90,1./110,1./130,1./150,1./170,1./190,1./210]
@@ -168,7 +174,6 @@ def train():
               val_jest_batch =  jnp.empty((config.shard_size,0)) 
               val_grad_batch =  jnp.empty((config.shard_size,0)) 
               for batch_idx,batch in enumerate(data_shard):
-    
                   key = jax.random.PRNGKey((batch_idx+1)*(ds_idx+1)*epoch)
                   keys = [jax.random.split(key*(el+1), config.shard_size).reshape(config.shard_size,2) for el in range(config.data.num_coords//config.shard_size)]
                   opt_mapping = jax.vmap(lambda alpha,beta,gamma,phi: coordit(model,optimizer,alpha,beta,gamma,phi),in_axes=(0,0,0,0))
@@ -233,8 +238,8 @@ def train():
         "data_test":embedding.clean_data_test
       }
         
-      with open(config.PATH_MOD+config.data.name+'['+str(config.model.width)+'^'+str(config.model.depth)+']_'+str(config.model.prior_var)+'_'+str(embedding.a)+".pkl", "wb") as f:
-        pickle.dump(output, f)
+      #with open(config.PATH_MOD+config.data.name+'['+str(config.model.width)+'^'+str(config.model.depth)+']_'+str(config.model.prior_var)+'_'+str(embedding.a)+".pkl", "wb") as f:
+      #  pickle.dump(output, f)
 
 
 #########################    MAIN    ################################

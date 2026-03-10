@@ -7,8 +7,6 @@ from numpy import quantile
 from jax.numpy import sum
 from jax import vmap
 from utils import create_folder
-#os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'
 
 def pit_value(ef,b):
   q=lambda x: (b<=x)*0 + (b>x)*1
@@ -27,7 +25,7 @@ def mmaf_plot(metrics,pi,width,depth):
     qs_label=['10%','20%','30%','40%','50%','60%','70%','80%','90%','95%']
     for Coord in list_coords:
       
-      pitMap=vmap(pit_value,in_axes=(0,0))(metrics.ef_test[Coord,:,:],metrics.data_test[Coord,-1,:])
+      pitMap=vmap(pit_value,in_axes=(1,0))(metrics.ef_test[Coord,:,:],metrics.data_test[Coord,-1,:])
       
       fig,ax=plt.subplots(figsize=[12,5])
       ax.hist(pitMap, histtype="bar",cumulative=False,density=True,align='mid')
@@ -35,11 +33,8 @@ def mmaf_plot(metrics,pi,width,depth):
       plt.savefig(pathPrior+'mmaf_hist_'+ metrics.filename + '_[' + str(width) +'^'+str(depth)+ ']_'+ str(pi)+'_'+str(8)+'_'+str(Coord)+'.eps',format='eps')
       plt.savefig(pathPrior+'mmaf_hist_'+ metrics.filename + '_[' + str(width) +'^'+str(depth)+ ']_'+ str(pi)+'_'+str(8)+'_'+str(Coord)+'.png')
       plt.close()
-    
-      
       
       fig, ax = plt.subplots(figsize=(12,5))
-    
       cmap = plt.cm.PuBu 
       cmaplist = [cmap(el) for el in range(cmap.N)]
       fig.tight_layout()
@@ -50,15 +45,14 @@ def mmaf_plot(metrics,pi,width,depth):
           ax.grid(True, axis='x', which='major', linestyle='-', linewidth=0.6)
           ax.grid(True, axis='y', linestyle='-', linewidth=0.6)
           ax.fill_between(
-              range(1,metrics.ef_test.shape[-2]+1),
-              quantile(metrics.ef_test[Coord,:,:], q=el, axis=1),
-              quantile(metrics.ef_test[Coord,:,:], q=1-el, axis=1),
+              range(1,metrics.ef_test.shape[-1]+1),
+              quantile(metrics.ef_test[Coord,:,:], q=el, axis=0),
+              quantile(metrics.ef_test[Coord,:,:], q=1-el, axis=0),
               color=cmaplist[60 + 15 * (el_idx + 1)]
           )
           
           ax.plot(range(1,metrics.data_test.shape[-1]+1), metrics.data_test[Coord,-1,:], color='gold', linewidth=0.5)
-          
-          #ax.set_ylim(-.7, .7)
+          ax.set_ylim(-.7, .7)
           ax.set_xlabel('Forecasting Horizons',fontsize=21)
         
       custom_lines = [Line2D([0], [0],marker='s', color=cmaplist[60+15*(0+1)], lw=8),
@@ -74,11 +68,7 @@ def mmaf_plot(metrics,pi,width,depth):
                      ]
       plt.legend(custom_lines,reversed([el for el in qs_label]),labelspacing=1.5, ncol=1,bbox_to_anchor=(1, .99))
       plt.savefig(pathPrior + 'mmaf_ef_' + metrics.filename + '_[' + str(width) +'^'+str(depth)+ ']_'+  str(pi)+'_'+str(8)+'_'+str(Coord)+'.jpg',bbox_inches='tight')
-
-
-      
       plt.savefig(pathPrior + 'mmaf_ef_' + metrics.filename + '_[' + str(width) +'^'+str(depth)+ ']_'+  str(pi)+'_'+str(8)+'_'+str(Coord)+'.eps',bbox_inches='tight',format='eps')
-    
       plt.close()
     
                             
