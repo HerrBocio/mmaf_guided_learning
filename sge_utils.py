@@ -226,7 +226,7 @@ def target_func_unbouded_sampling_from_rho(A,b,realization,arch,mask,theta, VarZ
   tf += theta*apc/delta * rho_Liph
   return tf
 
-def tf_unbounded(A,b,arch,mask,theta, VarZtrx,m,delta):
+def tf_unbounded(model, batch):
    return lambda beta: target_func_unbouded_sampling_from_rho(A,b,beta,arch,mask,theta, VarZtrx,m,delta)
 
 def pac_unbounded(A,realizations,piParams,rhoParams,dim,arch,mask,theta,VarZtrx,m,delta):

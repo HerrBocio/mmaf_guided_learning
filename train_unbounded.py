@@ -108,9 +108,9 @@ def coordit_unbounded(model,optimizer,params,batch,opt_state,rng):
   '''
   Core function for the optimization: performs the gradient step and updates the parameters for each spatial coordinate at the current batch iteration
   '''
-  theta = model.thetatilder
-  VarZtrx = model.truncated_covs_between_all_members_of_cone()[1][0][0]
-  scorf=tf_unbounded(model,batch,theta,VarZtrx,m,delta)
+  ##theta = model.thetatilder
+  ##VarZtrx = model.truncated_covs_between_all_members_of_cone()[1][0][0]
+  scorf=tf_unbounded(model,batch)
 
   #computes the second term of the obj function (containing the divergence terms)
   kl_mapped = lambda beta: target_func_unbounded_KL(piParams,beta,dim,m)
