@@ -2,6 +2,7 @@ import jax.numpy as jnp
 from jax import vmap, jit
 import numpy as np
 from scipy.optimize import newton
+from utils import truncated_cov, theta_r
 
 
 class Embedding(): 
@@ -134,10 +135,13 @@ class Embedding():
       if self.data_name=='Gaudiamonddata1A4mln':
         self.A=3.840956
         hatc=1
+        VarLevySeed = 0.5 # TODO is that correct?
       elif self.data_name== 'NIGdiamonddata1A4mln':
         self.A=3.868912
         hatc=1  
+        VarLevySeed = 0.5 # TODO is that correct?
       else:  
+        VarLevySeed = 0.5 # TODO what is it??
         Y=np.array(list(data))
         nrY, ncY = Y.shape
         
@@ -212,6 +216,8 @@ class Embedding():
       data_test_mapped = lambda alpha: self.get_coneJ(alpha,data[:,self.val_start_idx:].shape[-1])
       self.clean_data_test = [vmap(data_test_mapped)(el) for el in data_test_sharded]#
       
+      self.theta = theta_r(self.A, hatc, self.a-self.p, VarLevySeed) 
+      self.VarZtrx = truncated_cov(self.A, hatc, self.a-self.p, 0, 0, VarLevySeed)
 
 
 

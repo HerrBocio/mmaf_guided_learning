@@ -103,17 +103,16 @@ def default_config(hparams):
 
 
 
-def coordit_unbounded(model,optimizer,params,batch,opt_state,rng):
+def coordit_unbounded(model,optimizer,theta,VarZtrx,params,batch,opt_state,rng):
 
   '''
   Core function for the optimization: performs the gradient step and updates the parameters for each spatial coordinate at the current batch iteration
   '''
-  ##theta = model.thetatilder
-  ##VarZtrx = model.truncated_covs_between_all_members_of_cone()[1][0][0]
-  scorf=tf_unbounded(model,batch)
+  scorf=tf_unbounded(model,batch, theta, VarZtrx)
 
   #computes the second term of the obj function (containing the divergence terms)
-  kl_mapped = lambda beta: target_func_unbounded_KL(piParams,beta,dim,m)
+  m = batch[-1].shape[0]
+  kl_mapped = lambda beta: target_func_unbounded_KL(model.pi_params,beta,m)
   #stochastic gradient estimator for the gradient of the expected empirical risk
   val_jest,jest = sge_pwj(scorf,params,my_multi_normal,rng)
         
@@ -125,21 +124,6 @@ def coordit_unbounded(model,optimizer,params,batch,opt_state,rng):
   updates = jest+grad
   updates, opt_state = optimizer.update(updates,opt_state,params)  
   params = apply_updates(params,updates)
-
-
-
-
-  # scorf=l_empirical_risk(model,batch)#batch[:-1,:],batch[-1,:])
-
-  # pac_mapped = lambda alpha: pac_approx(model,alpha,batch[-1].shape[0])
-  # val_grad=pac_mapped(params)
-  # grad= jax.grad(pac_mapped)(params)
-  
-  # val_jest,jest = sge_pwj(scorf,params,my_multi_normal,rng)
-  
-  # updates = jest+grad
-  # updates, opt_state = optimizer.update(updates,opt_state,params)  
-  # params = apply_updates(params,updates)
   
   return [params,opt_state,val_jest,val_grad]
 
@@ -162,9 +146,9 @@ def train_unbounded():
       embedding.embedded_data()
     
       config.model.inp_size= sum([2*k*embedding.c+1 for k in range(1,embedding.p+1)])
+
       
       model = Model(config)
-      model.Lip=LipC(model)
       #ugly...
       model.delta=config.hparams.delta
     
@@ -203,7 +187,7 @@ def train_unbounded():
     
                   key = jax.random.PRNGKey((batch_idx+1)*(ds_idx+1)*epoch)
                   keys = [jax.random.split(key*(el+1), config.shard_size).reshape(config.shard_size,2) for el in range(config.data.num_coords//config.shard_size)]
-                  opt_mapping = jax.vmap(lambda alpha,beta,gamma,phi: coordit(model,optimizer,alpha,beta,gamma,phi),in_axes=(0,0,0,0))
+                  opt_mapping = jax.vmap(lambda alpha,beta,gamma,phi: coordit_unbounded(model,optimizer,embedding.theta,embedding.VarZtrx,alpha,beta,gamma,phi),in_axes=(0,0,0,0))
                   
                   [model.params[ds_idx],model.opt_state_grid[ds_idx],val_jest,val_grad]= opt_mapping(model.params[ds_idx],batch, model.opt_state_grid[ds_idx], keys[ds_idx])
                   #print('val',val_jest.shape,val_jest_batch.shape,val_jest_stacked.shape)
@@ -231,7 +215,7 @@ def train_unbounded():
               
               train_shard=jnp.mean(train_shard,axis=1)
               
-              pac_shard   = lambda alpha: pacBound(model,embedding.m_batch,alpha) 
+              pac_shard   = lambda alpha: pac_unbounded(model,batch,embedding.theta, embedding.VarZtrx,alpha) 
               pac_shard   = vmap(pac_shard)(model.params[ds_idx])
               train_stacked= jnp.hstack([train_stacked,train_shard])
               pac_stacked= jnp.hstack([pac_stacked,pac_shard])
