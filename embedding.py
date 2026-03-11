@@ -3,7 +3,6 @@ from jax import vmap, jit
 import numpy as np
 from scipy.optimize import newton
 
-
 class Embedding(): 
 
     def __init__(self, config:dict):
@@ -90,7 +89,6 @@ class Embedding():
         #extracts the cone heaps Y_i
         b=self.gather_1d(data,cone_ends_coordinates)
         #selects the coordinate of the truncated cone
-
         self.get_cone_shiftJ()
         cone_ends_coordinates=jnp.expand_dims(cone_ends_coordinates,2)
         cone_coordinates=cone_ends_coordinates+self.cone_shift
@@ -201,7 +199,7 @@ class Embedding():
       #print(self.a,self.Nbatches,self.Ncones,self.data_name,data.shape)
 
       data=data[:,int(data.shape[-1]%self.a):]
-      #print(data.shape[-1]%self.a-1,data.shape)
+      print(data.shape[-1]%self.a-1,data.shape)
       
       
       data_mapped = lambda alpha: self.get_coneJ(alpha,self.a*self.m_batch)  #self.val_start_idx-1)
@@ -228,7 +226,7 @@ class Embedding():
         data_test_sharded.append(data_stacked)
       data_test_mapped = lambda alpha: self.get_coneJ(alpha,data[:,self.val_start_idx:].shape[-1])
       self.clean_data_test = [vmap(data_test_mapped)(el) for el in data_test_sharded]#
-        
+
 
       ''' 
           data_stacked=jnp.vstack([data_stacked,data[i,-(Ncones_test-1)*self.a:].reshape(1,data[i,-(Ncones_test-1)*self.a:].shape[0],data[i,-(Ncones_test-1)*self.a:].shape[1])])

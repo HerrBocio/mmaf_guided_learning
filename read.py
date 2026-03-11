@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from plots import mmaf_plot
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'
+os.environ["CUDA_VISIBLE_DEVICES"]='3'#,2,3'
 
 def load_pickle_file(filepath):
     """
@@ -52,54 +52,57 @@ def inspect_output_structure(output):
 if __name__ == "__main__":
 
     # Validation
-    width=[3]#00,100,30,10,10]#,10]
-    depth=[2,2,2,2,5,2]
-    priors=[10]#,30,50,70,90,110,130,150,170,190,210]
+    width=[800]#[10,10,30,100,300]
+    depth=[3]#[2,5,2,2,2,3]
+    priors=[210,30,50,70,90,110,130,150,170,190,210]
     Ndraws=1000
-    filename="Gaudiamonddata1A4mln"
+    draws_shard=100
+    filename="OLR_full"
     
     for i in range(len(width)):
-      lowest_mean=+jnp.inf
+      lowest_crps=+jnp.inf
       lowest_prior=0
       for pi in priors:
         
-        print('\n\n\t\tset', width[i],pi)
         #filepath = "output/model/Gaudiamonddata1A4mln[800^3]_10_8.pkl"
-        filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(pi))+'_'+str(8)+".pkl"
+        filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(pi))+'_'+str(64)+".pkl"
     
         output = load_pickle_file(filepath)
-    
+        data_x=load_pickle_file('OLR_test_cones.pkl')
         #inspect_output_structure(output)
+
+        #print('x',data_x.shape)
         
         model = output["model"]
-        print('len',model.best_params[0].shape)
-        metrics=Metrics(model,output['data_test'],Ndraws,filename)
-        metrics.multi_ef()
+        metrics=Metrics(model,data_x,Ndraws,filename)
+        metrics.multi_ef_new()
         metrics.crps_univ_rank()
-        metrics.rmse_univ_rank()
-        print(metrics.crps_val.shape,metrics.crps_test.shape)
         
-        if metrics.crps_val_mean<lowest_mean:
-          lowest_mean=metrics.crps_val_mean
+        
+        if metrics.crps_val_mean<lowest_crps:
+          lowest_crps=metrics.crps_val_mean
           lowest_prior=pi
 
-          
-    # Test for validated best metrics'#
-      '''
-      file_=h5py.File('/afs/tu-chemnitz.de/project/calibration/siam_results/small/prior10var/01_2801_28_full_relu_std161_Gaudiamonddata1A4mln_a[8, 8]_pir10_m1000_Epoch_60.h5','r')
-      m_g=file_.get('m'+str(1000))
-      b_g=m_g.get('min')
+    
+      print('Validated prior  [', width[i],'^',depth[i],']:  ',lowest_prior)
+      filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(lowest_prior))+'_'+str(64)+".pkl"
+
       
-      data_old = jnp.array(m_g.get('data_test'))
-      old_params=jnp.array(b_g.get('best params'))
-
-      '''
-      print('lowest prior ', width[i],lowest_prior)
-      filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(lowest_prior))+'_'+str(8)+".pkl"
-
+      
       output = load_pickle_file(filepath)
       validated_model = output["model"]
-      validated_metrics=Metrics(validated_model,output['data_test'],Ndraws,filename)
-      validated_metrics.multi_ef()
+      target=(output['training_history']['train_error'][output['best_training']['min_it']] + output['training_history']['val_grad'][output['best_training']['min_it']][:,-1]).mean(axis=0)
+      validated_metrics=Metrics(validated_model,data_x,Ndraws,filename)
+      validated_metrics.multi_ef_new()
+      validated_metrics.crps_univ_rank()
+      validated_metrics.rmse_univ_rank()
+      
+      emp_risk=output['training_history']['train_error'][output['best_training']['min_it']]
+      validated_metrics.true_pac(36,emp_risk)
 
+      print('& $['+str(width[i])+'^'+str(depth[i])+']$ &', jnp.round(target,decimals=4),'&',jnp.round(validated_metrics.true_pac_train,decimals=4),'&','$N(0,1/',lowest_prior,')$','&',jnp.round(validated_metrics.crps_val_mean,decimals=4),'&',jnp.round(validated_metrics.rmse_val_mean,decimals=4),'& 18 &',jnp.round(validated_metrics.crps_test_mean,decimals=4),'&',jnp.round(validated_metrics.rmse_test_mean,decimals=4))
+    
+      
       mmaf_plot(validated_metrics,lowest_prior,width[i],depth[i])
+
+

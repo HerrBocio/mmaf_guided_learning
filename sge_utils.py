@@ -1,7 +1,7 @@
 from jax import grad,vmap,jit
 import jax.numpy as jnp
 import jax.random
-from utils import KLdiag_from_log_scale
+from utils import KLdiag_from_log_scale,chi2_diag_gaussians
 from functools import partial
 
 class MyMultiNormalDiagFromLogScale:	
@@ -131,7 +131,7 @@ def truePAC(model,m,params):
     Output: 
         bb: pac bound
     '''
-    bb=2*(jnp.log(model.delta))/jnp.sqrt(m) + (.5*model.eps**2)/jnp.sqrt(m)
+    bb=2*(-jnp.log(model.delta))/jnp.sqrt(m) + (.5*model.eps**2)/jnp.sqrt(m)
     kl=KLdiag_from_log_scale(model.pi_params,params,model.dim)
     chi=chi2_diag_gaussians(model.pi_params,params)
     theta=(model.Lip*model.inp_size + 1 )
@@ -160,7 +160,7 @@ def pacBound(model,m,params):
     '''
     bb=0
     piParams=[model.pi_params[0],model.pi_params[1]]#jnp.diag(piParams[1])]
-    bb= 2*(jnp.log(model.delta))/jnp.sqrt(m) + (.5*model.eps**2)/jnp.sqrt(m)
+    bb= 2*(-jnp.log(model.delta))/jnp.sqrt(m) + (.5*model.eps**2)/jnp.sqrt(m)
     kl=KLdiag_from_log_scale(model.pi_params,params,model.dim)
     theta=(model.Lip*model.inp_size+1)  #lambda gamma: 
     bb+= (1./jnp.sqrt(m))*kl+jnp.sqrt((theta/m)*kl*2)

@@ -75,7 +75,7 @@ def default_config(hparams):
       config.data.epochs = 5000
       config.data.m_batch= 36
       config.data.num_coords = 8
-      config.data.val_start_idx = int(3520*0.65625) 
+      config.data.val_start_idx = int(2304) 
       config.data.slope = 0.012402022841533814 
       config.data.q = 0.24020228415338135
 
@@ -130,10 +130,10 @@ def coordit(model,optimizer,params,batch,opt_state,rng):
 
 def train():
 
-  width=[10,10,30,100,300,800]
-  depth=[2,5,2,2,2,3]
-  shard_size=[8,8,8,8,8,2]
-  priors=[10,30,50,70,90,110,130,150,170,190,210]
+  width=[800]#10,10,30,100,300,800]
+  depth=[3]#2,5,2,2,2,3]
+  shard_size=[4]#8,8,8,8,8,2]
+  priors=[210]#0,30,50,70,90,110,130,150,170,190,210]
   #[1./10,1./30,1./50,1./70,1./90,1./110,1./130,1./150,1./170,1./190,1./210]
   for i in range(len(width)):
     for pi in priors:
@@ -143,7 +143,7 @@ def train():
       config = default_config(hparams)
       embedding = Embedding(config)
       embedding.embedded_data()
-    
+      
       config.model.inp_size= sum([2*k*embedding.c+1 for k in range(1,embedding.p+1)])
       
       model = Model(config)
@@ -238,8 +238,8 @@ def train():
         "data_test":embedding.clean_data_test
       }
         
-      #with open(config.PATH_MOD+config.data.name+'['+str(config.model.width)+'^'+str(config.model.depth)+']_'+str(config.model.prior_var)+'_'+str(embedding.a)+".pkl", "wb") as f:
-      #  pickle.dump(output, f)
+      with open(config.PATH_MOD+config.data.name+'['+str(config.model.width)+'^'+str(config.model.depth)+']_'+str(config.model.prior_var)+'_'+str(embedding.a)+".pkl", "wb") as f:
+        pickle.dump(output, f)
 
 
 #########################    MAIN    ################################
