@@ -27,13 +27,14 @@ class Model():
     
       init_mean = jnp.ones(dim)*config.model.init_mean 
       init_log_scale= jnp.ones(dim)*jnp.log(config.model.init_var)/2
-      self.sharded_params=vmap(lambda dummy: jnp.vstack([init_mean,init_log_scale]))(range(self.shard_size))
-      self.params= [vmap(lambda dummy: jnp.vstack([init_mean,init_log_scale]))(range(config.shard_size)) for el in range((config.data.num_coords)//config.shard_size)]   
+      self.sharded_params=vmap(lambda dummy: jnp.vstack([init_mean,init_log_scale]))(jnp.arange(self.shard_size))
+      self.params= [vmap(lambda dummy: jnp.vstack([init_mean,init_log_scale]))(jnp.arange(config.shard_size)) for el in jnp.arange((config.data.num_coords)//config.shard_size)]   
 
   
   
   def pozzo(self, weights:jnp.array):
     pozzo=[weights[self.mask[el-1]:self.mask[el]].reshape((self.arch[el-1]+1, self.arch[el])) for el in range(1, len(self.mask))]
+    #jax.debug.print("{}")
     return pozzo
 
 
@@ -59,22 +60,24 @@ class Model():
       '''
       x=inp
       for el in weights[:-1]:
+         #jax.debug.print("el {}",el.shape)
+         #jax.debug.print("x shape before matmul {}",x.shape)
          x=jnp.matmul(x,el[:-1,:]) +el[-1,:]
+         #jax.debug.print("x shape after matmul {}",x.shape)
          activation= lambda vec: (vec<0)*0+(vec>=0)*vec 
          x=vmap(activation)(x)  #activation
+         #jax.debug.print("x shape after activation {}",x.shape)
       return jnp.matmul(x,weights[-1][:-1,:])
   
-  def ffnn_forward_pass(self, inp, weights):
-    '''
-      Function that computes the forward pass for a generic neural network
-      Input:
-          inp: input data for the ffnn
-          weights: list (?) of network parameters (more than 1 network)
-    '''
-    forward_weights=lambda alpha: self.ffnn_forward_pass(inp,alpha)
-    forward_mapped=jax.vmap(forward_weights)(weights) #0 or 1?,in_axes=0 TODO ich glaube der Kommentar kann weg und es funktioniert auch so?
-    forward_mapped=forward_mapped.reshape((forward_mapped.shape[0]))
-    return forward_mapped
+  @partial(jit, static_argnums=0)
+  def ffnn_vmap_over_forward_pass(self, inp:jnp.array, weights:list):	
+      '''
+      ...
+      '''
+      forward=lambda alpha:(self.ffnn_forward_pass(alpha,weights))
+      forward_mapped=vmap(forward,in_axes=1)(inp)
+      hX=forward_mapped.reshape((forward_mapped.shape[0]))
+      return hX
   
   @partial(jit, static_argnums=0)
   def ffnn_loss_forward_pass(self, inp:jnp.array, weights:list, b:jnp.array, eps:jnp.float32):	
@@ -94,11 +97,11 @@ class Model():
       
   @partial(jit, static_argnums=0)
   def crps_loss_forward_pass(self, inp:jnp.array, weights:list, b:jnp.array):
-      forward=lambda alpha:(ffnn_forward_pass(alpha,weights))
+      forward=lambda alpha:(self.ffnn_forward_pass(alpha,weights))
       
       forward_mapped=vmap(forward,in_axes=1)(inp)
       forward_mapped=forward_mapped.reshape((forward_mapped.shape[0]))
-      l=crps_univ_rank_mapped(b, forward_mapped)
+      l=self.crps_univ_rank_mapped(b, forward_mapped)
       
       return l
   '''

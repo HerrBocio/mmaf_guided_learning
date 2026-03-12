@@ -181,7 +181,7 @@ def pac_approx(model,mapped_params,m):
         Lip: Lipschitz constant estimate of the network, computed over the reference distribution
         a_p_c: dimension of the network input     
     '''
-    return KLdiag_from_log_scale(model.pi_params,mapped_params,model.dim)*1./jnp.sqrt(m) + jnp.sqrt((model.Lip*model.inp_size+1)*2*KLdiag_from_log_scale(model.pi_params,mapped_params,model.dim)/m)
+    return KLdiag_from_log_scale(model.pi_params,mapped_params)*1./jnp.sqrt(m) + jnp.sqrt((model.Lip*model.inp_size+1)*2*KLdiag_from_log_scale(model.pi_params,mapped_params,model.dim)/m)
 
 
 
@@ -196,10 +196,21 @@ def empirical_risk(model,batch,realization):
     '''
     masking= lambda alpha: model.pozzo(alpha)
     realization=vmap(masking,in_axes=0)(realization)
+    jax.debug.print("realization {}",realization)
     empR=lambda beta : model.ffnn_loss_forward_pass(batch[:-1,:],beta,batch[-1,:],model.eps)
     eU=vmap(empR)(realization)
     return jnp.mean(eU,axis=0)
 
+def hX_computation(model,batch,realization):
+    '''
+    single realization must have shape: (1,dim)
+    '''
+    masking= lambda alpha: model.pozzo(alpha)
+    realization=vmap(masking,in_axes=0)(realization)
+    jax.debug.print("realization {}",realization)
+    empR=lambda beta : model.ffnn_vmap_over_forward_pass(batch[:-1,:],beta)
+    eU=vmap(empR)(realization)
+    return eU
 
 #################################### UNBOUNDED #########################################  
 
@@ -212,11 +223,12 @@ def target_func_unbouded_sampling_from_rho(model, batch, theta, VarZtrx, realiza
   """
   m = batch[-1].shape[0]
   tf = empirical_risk(model, batch, realization)
-  realization=model.pozzo(realization)
-  forward=lambda alpha:(model.ffnn_forward_pass(alpha,realization))
-  hX=jax.vmap(forward,in_axes=1)(batch[:-1,:])
-  hX=hX.reshape((hX.shape[0]))
-  rho_Liph = naiveLip(realization) # realization is already masked, and it is just 1
+  masking= lambda alpha: model.pozzo(alpha)
+  #jax.debug.print("weights {}",weights)
+  hX=hX_computation(model,batch,realization)
+  #jax.debug.print("hX shape {}",hX.shape) #= (1,1000)
+  weights=vmap(masking,in_axes=0)(realization)
+  rho_Liph = Lip_realizations_masked(weights)
   rho_Liph_sq = jnp.mean(jnp.power(rho_Liph,2))
   abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
   abs_E_hX = jax.vmap(abs_mean)(hX)
@@ -232,34 +244,81 @@ def target_func_unbouded_sampling_from_rho(model, batch, theta, VarZtrx, realiza
 def tf_unbounded(model, batch, theta, VarZtrx):
    return lambda beta: target_func_unbouded_sampling_from_rho(model, batch, theta, VarZtrx, beta)
 
-def pac_unbounded(model, batch, theta, VarZtrx, rho_params, N= 10, shard_size = 5, seed = 1): # TODO checken ob wirklich alle terme dabei
+def pac_unbounded(model, batch, theta, VarZtrx, dim, rho_params, rng, N= 10, shard_size = 5): # TODO checken ob wirklich alle terme dabei
+    """
+    estimate of the PAC Bayesian bound (without the empirical error) using several realizations drawn from rho
+    """
+    m = batch[-1].shape[0]
+    jax.debug.print("m? {}",m) # 4 - da liegt fehler denke ich - TODO
+    masking = lambda alpha: model.pozzo(alpha)
+    realizationssss = dist_sample(rho_params, N, rng)
+    realizationssss = realizationssss.reshape((N//shard_size,shard_size,dim))
+    bounds = []
+    rho_Lips = []
+    for el in realizationssss:
+        #hX=hX_computation(model,batch,el)
+        #jax.debug.print("hX shape {}",hX.shape)
+        el=jax.vmap(masking,in_axes=0)(el)
+        forward=lambda alpha:(model.ffnn_forward_pass(alpha,el))
+        hX=jax.vmap(forward,in_axes=1)(batch[:-1,:])
+        Liphs = Lip_realizations_masked(el) 
+        rho_Liph = jnp.mean(Liphs)
+        rho_Liph_sq = jnp.mean(jnp.power(Liphs,2))
+        abs_mean = lambda beta: jnp.abs(jnp.mean(beta, axis=0))
+        hX = jnp.stack(hX, axis=1)
+        abs_E_hX = jax.vmap(abs_mean)(hX)
+        rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liphs))
+        rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
+        tf =  model.inp_size*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
+        tf += rho_Liph_sq*model.inp_size**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
+        tf +=  model.inp_size * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
+        tf += rho_hXsq/(2*jnp.sqrt(m))
+        tf += theta*model.inp_size/model.delta * rho_Liph # rho_Liph as an estimation for sup rho[Lip(h)]
+        constants = theta*(1+1/model.delta)+jnp.log(1/model.delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))
+        KLdivSqrtm = target_func_unbounded_KL(model.pi_params,rho_params,m)
+        bound = tf + KLdivSqrtm + constants
+        bounds.append(bound)
+        rho_Lips.append(rho_Liph)
+    jax.debug.print("success {}",jnp.mean(jnp.array(bounds)))
+    return [jnp.mean(jnp.array(bounds)),jnp.mean(jnp.array(rho_Lips))]
+
+def pac_unboundedold(model, batch, theta, VarZtrx, dim, rho_params, rng, N= 10, shard_size = 5): # TODO checken ob wirklich alle terme dabei
     """
     estimate of the PAC Bayesian bound (without the empirical error) using several realizations drawn from rho
     """
     m = batch[-1].shape[0]
     jax.debug.print("m? {}",m)
-    realizations = dist_sample(rho_params, N, seed)
     masking = lambda alpha: model.pozzo(alpha)
-    realizations=jax.vmap(masking,in_axes=0)(realizations)
-    forward=lambda alpha:(model.ffnn_forward_pass_several_weights(alpha,realizations))
-    hX=jax.vmap(forward,in_axes=1)(batch[:-1,:])
-    Liphs = Lip_realizations_masked(realizations) 
-    rho_Liph = jnp.mean(Liphs)
-    rho_Liph_sq = jnp.mean(jnp.power(Liphs,2))
-    abs_mean = lambda beta: jnp.abs(jnp.mean(beta, axis=0))
-    hX = jnp.stack(hX, axis=1)
-    abs_E_hX = jax.vmap(abs_mean)(hX)
-    rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liphs))
-    rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
-    tf =  model.inp_size*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
-    tf += rho_Liph_sq*model.inp_size**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
-    tf +=  model.inp_size * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
-    tf += rho_hXsq/(2*jnp.sqrt(m))
-    tf += theta*model.inp_size/model.delta * rho_Liph # rho_Liph as an estimation for sup rho[Lip(h)]
-    constants = theta*(1+1/model.delta)+jnp.log(1/model.delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))
-    KLdivSqrtm = target_func_unbounded_KL(model.pi_params,rho_params,m)
-    bound = tf + KLdivSqrtm + constants
-    return [bound,rho_Liph]
+    realizationssss = dist_sample(rho_params, N, rng)
+    realizationssss = realizationssss.reshape((N//shard_size,shard_size,dim))
+    bounds = []
+    rho_Lips = []
+    for el in realizationssss:
+        hX=hX_computation(model,batch,el)
+        jax.debug.print("hX shape {}",hX.shape)
+        el=jax.vmap(masking,in_axes=0)(el)
+        #forward=lambda alpha:(model.ffnn_forward_pass(alpha,el))
+        #hX=jax.vmap(forward,in_axes=1)(batch[:-1,:])
+        Liphs = Lip_realizations_masked(el) 
+        rho_Liph = jnp.mean(Liphs)
+        rho_Liph_sq = jnp.mean(jnp.power(Liphs,2))
+        abs_mean = lambda beta: jnp.abs(jnp.mean(beta, axis=0))
+        hX = jnp.stack(hX, axis=1)
+        abs_E_hX = jax.vmap(abs_mean)(hX)
+        rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liphs))
+        rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
+        tf =  model.inp_size*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
+        tf += rho_Liph_sq*model.inp_size**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
+        tf +=  model.inp_size * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
+        tf += rho_hXsq/(2*jnp.sqrt(m))
+        tf += theta*model.inp_size/model.delta * rho_Liph # rho_Liph as an estimation for sup rho[Lip(h)]
+        constants = theta*(1+1/model.delta)+jnp.log(1/model.delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))
+        KLdivSqrtm = target_func_unbounded_KL(model.pi_params,rho_params,m)
+        bound = tf + KLdivSqrtm + constants
+        bounds.append(bound)
+        rho_Lips.append(rho_Liph)
+    jax.debug.print("success {}",jnp.mean(jnp.array(bounds)))
+    return [jnp.mean(jnp.array(bounds)),jnp.mean(jnp.array(rho_Lips))]
 
 
 

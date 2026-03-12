@@ -166,6 +166,8 @@ def train():
     
       train_epoch= jnp.empty((0,config.data.num_coords))
       pac_epoch  = jnp.empty((0,config.data.num_coords))
+      jax.debug.print("dim {}",model.dim)
+      jax.debug.print("mask {}",model.mask)
       for epoch in trange(1,config.data.epochs+1, desc='epochs', colour='green'):
     
           #print(config.data.num_coords)

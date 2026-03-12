@@ -131,8 +131,8 @@ def coordit_unbounded(model,optimizer,theta,VarZtrx,params,batch,opt_state,rng):
 
 def train_unbounded():
 
-  width=[800,300,100,30,10,10]
-  depth=[3,2,2,2,5,2]
+  width=[10,800,300,100,30,10,10]
+  depth=[2,3,2,2,2,5,2]
   shard_size=[4,8,8,8,8,8]
   priors=[1./10,1./30,1./50,1./70,1./90,1./110,1./130,1./150,1./170,1./190,1./210]
   for i in range(len(width)):
@@ -143,9 +143,9 @@ def train_unbounded():
       config = default_config(hparams)
       #print(config.data.name)
       embedding = Embedding(config)
-      embedding.embedded_data()
+      embedding.embedded_data_unbounded()
     
-      config.model.inp_size= sum([2*k*embedding.c+1 for k in range(1,embedding.p+1)])
+      config.model.inp_size= sum([2*k*embedding.c+1 for k in jnp.arange(1,embedding.p+1)])
 
       
       model = Model(config)
@@ -153,7 +153,7 @@ def train_unbounded():
       model.delta=config.hparams.delta
     
       optimizer = adam(config.lr)
-      model.opt_state_grid = [jax.vmap(optimizer.init)(model.sharded_params) for el in range(config.data.num_coords//config.shard_size)]
+      model.opt_state_grid = [jax.vmap(optimizer.init)(model.sharded_params) for el in jnp.arange(config.data.num_coords//config.shard_size)]
     
       
       
@@ -171,6 +171,9 @@ def train_unbounded():
     
       train_epoch= jnp.empty((0,config.data.num_coords))
       pac_epoch  = jnp.empty((0,config.data.num_coords))
+      jax.debug.print("dim {}",model.dim)
+      jax.debug.print("mask {}",model.mask)
+
       for epoch in trange(1,config.data.epochs+1, desc='epochs', colour='green'):
     
           #print(config.data.num_coords)
@@ -215,7 +218,7 @@ def train_unbounded():
               
               train_shard=jnp.mean(train_shard,axis=1)
               
-              pac_shard   = lambda alpha: pac_unbounded(model,batch,embedding.theta, embedding.VarZtrx,alpha) 
+              pac_shard   = lambda alpha: pac_unbounded(model,batch,embedding.theta, embedding.VarZtrx,model.dim,alpha,key) # TODO different key?
               pac_shard   = vmap(pac_shard)(model.params[ds_idx])
               train_stacked= jnp.hstack([train_stacked,train_shard])
               pac_stacked= jnp.hstack([pac_stacked,pac_shard])

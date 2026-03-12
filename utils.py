@@ -20,7 +20,7 @@ def get_workspace():
     file = path.dirname(cur_path)
     file = path.dirname(file)
     return file
-ws =  get_workspace() + '/mmaf'
+ws =  get_workspace() + '/mmaf_guided_learning'
 
 
 def mask_gen(inp,arch):
