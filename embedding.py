@@ -3,7 +3,6 @@ from jax import vmap, jit
 import numpy as np
 from scipy.optimize import newton
 
-
 class Embedding(): 
 
     def __init__(self, config:dict):
@@ -19,12 +18,13 @@ class Embedding():
         self.data_name=config.data.name
         
         self.num_coords=config.data.num_coords
-        self.Ncones_test=config.data.Ncones_test
-        
+      
+        self.slope=config.data.slope
+        self.q = config.data.q
 
     def gather_1d(self,data, indices):
-        flat_idx=jnp.ravel_multi_index(indices.T,data.shape)#,order='F')
-        return data.flatten()[flat_idx]	
+        flat_idx=jnp.ravel_multi_index(indices.T,data.shape)
+        return data.flatten()[flat_idx]
 
       
     def gather_2d(self,data,indices):
@@ -42,6 +42,7 @@ class Embedding():
         coord=jnp.concat(coord,axis=0)
         coord=jnp.expand_dims(jnp.expand_dims(coord,0),0)
         self.cone_shift=coord
+        
 
       
     def get_cone_shiftJ_3d(self):
@@ -50,10 +51,8 @@ class Embedding():
         '''
         coord=jnp.transpose(vmap(lambda dummy: jnp.array([]))(range(3)))
         for t in reversed(range(self.p)):  # self.p = p
-        # aggiunge alla fine di coord il vettore dentro tf.constant()
             coord1=jnp.array([jnp.array([- (t+1), v, u]) for v in range(-int(jnp.floor(self.c*(t + 1)/jnp.sqrt(2))+1), int(jnp.floor(self.c*(t + 1)/jnp.sqrt(2))+1) + 1)  for u in range(-int(jnp.floor(self.c*(t + 1)/jnp.sqrt(2))+1), int(jnp.floor(self.c*(t + 1)/jnp.sqrt(2))+1) + 1)])
             coord=jnp.vstack([coord,coord1])
-        #print('coord',coord)
         self.cone_shift=coord
 
       
@@ -65,29 +64,34 @@ class Embedding():
             data: dataset where to extract the training data (X_i,Y_i)
         """
         #selecting the coordinate of the cone heaps
-        cone_ends = jnp.flip(jnp.arange(size-1,size % self.a + self.p, -self.a)) # MODIFIED W/ SIZE -> SIZE - 1
-        cone_ends_shape = cone_ends.shape[0] #(size - 1 - size % self.a) / (self.a)
-        #cone_ends_shape = (jnp.floor(cone_ends_shape) + 1).astype('int16')
+        #cone_ends = jnp.flip(jnp.arange(size-1,size % self.a + self.p, -self.a)) # MODIFIED W/ SIZE -> SIZE - 1
+        if not size==self.m_batch:
+          cone_ends = jnp.arange(size % self.a + self.p, size, self.a)
+        cone_ends_shape =(size - 1 - size % self.a) / (self.a)
+        cone_ends_shape = (jnp.floor(cone_ends_shape) + 1).astype('int16')
+        # cone_ends.shape[0] #
         if not size%self.a: 
           cone_ends=jnp.flip(jnp.arange(size-1,0,-self.a))
           cone_ends_shape=cone_ends.shape[0]
+          cone_ends_shape = (size - 1 - size % self.a) / (self.a)
+          cone_ends_shape = (jnp.floor(cone_ends_shape) + 1).astype('int16')
         x=jnp.expand_dims(jnp.expand_dims(jnp.array([jnp.ceil(self.c*self.p).astype('int16')]),1),1)
         cone_ends=jnp.expand_dims(jnp.expand_dims(cone_ends,1),0)
         x=jnp.broadcast_to(x,[x.shape[0],cone_ends_shape,1])
         cone_ends=jnp.broadcast_to(cone_ends,x.shape)
         cone_ends_coordinates=jnp.concat( (x, cone_ends),axis=2)
-        #print(cone_ends_coordinates)
+      
         #extracts the cone heaps Y_i
         b=self.gather_1d(data,cone_ends_coordinates)
+      
         #selects the coordinate of the truncated cone
         self.get_cone_shiftJ()
         cone_ends_coordinates=jnp.expand_dims(cone_ends_coordinates,2)
         cone_coordinates=cone_ends_coordinates+self.cone_shift
-        #print(cone_coordinates)
+      
         #extracts the cone truncation X_i
         A=self.gather_1d(data,cone_coordinates)
         emb=jnp.vstack([jnp.squeeze(A,axis=2),jnp.squeeze(b,axis=1)])
-        #emb=jnp.hstack([jnp.transpose(jnp.squeeze(A,axis=2)),jnp.expand_dims(jnp.squeeze(b,axis=1),axis=-1)])
         return emb
 
       
@@ -118,10 +122,9 @@ class Embedding():
         self.get_cone_shiftJ_3d()
         cone_coordinates=vmap(lambda s: s+self.cone_shift)(cone_ends_coordinates)
         
-       
-
         #extracts the cone heaps Y_i
         b=self.gather_2d(data,cone_ends_coordinates)
+      
         #extracts the cone truncation X_i
         A=vmap(lambda c_idx: self.gather_2d(data,c_idx))(cone_coordinates)
         
@@ -173,7 +176,7 @@ class Embedding():
       
       self.c=int(np.floor(hatc))
         
-      data=data[:self.num_coords+2*self.c*self.p,:]
+      data=data[:self.num_coords+2*self.c*self.p,:]*self.slope+self.q
         
       print(lambda_,self.A,hatc)
 
@@ -186,34 +189,33 @@ class Embedding():
       
       self.Ncones = int(self.val_start_idx//self.a) 
       self.Nbatches=self.Ncones//self.m_batch
-      print(self.a,self.Nbatches,self.Ncones,self.data_name)
+
+      data=data[:,int(data.shape[-1]%self.a):]
+      print(data.shape[-1]%self.a-1,data.shape)
+      
+      
+      data_mapped = lambda alpha: self.get_coneJ(alpha,self.a*self.m_batch)  #self.val_start_idx-1)
       list_shards= ([jnp.array([jnp.arange(coord-self.p*self.c,coord+self.p*self.c+1) for coord in range(element, element+self.shard_size)]) for element in range(self.p*self.c, data.shape[0]-self.p*self.c, self.shard_size)])
+      
       clean_data=[]
+      
       for ls in list_shards:
         data_sharded=[]
         for t_batch_idx in range(self.Nbatches):
-          data_stacked= jnp.empty((0,2*self.c*self.p+1,self.a*self.m_batch))  #self.val_start_idx-1))
+          data_stacked= jnp.empty((0,2*self.c*self.p+1,self.a*self.m_batch))  
           for i in ls:
             data_stacked=jnp.vstack([data_stacked,data[i, t_batch_idx*self.m_batch*self.a:(t_batch_idx+1)*self.m_batch*self.a].reshape(1, *data[i,t_batch_idx*self.m_batch*self.a:(t_batch_idx+1)*self.m_batch*self.a].shape)])
           data_sharded.append(data_stacked)
-        data_mapped = lambda alpha: self.get_coneJ(alpha,self.a*self.m_batch)  #self.val_start_idx-1)
         clean_data_t = [vmap(data_mapped)(el) for el in data_sharded]#
-        #print('clean',len(clean_data_t),clean_data_t[0].shape)
         clean_data.append(clean_data_t)
-        #print(len(clean_data))
       self.clean_data=clean_data
       
       data_test_sharded=[]
       for ls in list_shards:
-        data_stacked= jnp.empty((0,2*self.c*self.p+1,data[:,self.val_start_idx:].shape[-1]))
+        data_stacked= jnp.empty((0,2*self.c*self.p+1,data[i,self.val_start_idx:].shape[-1]))
         for i in ls:
           data_stacked=jnp.vstack([data_stacked,data[i,self.val_start_idx:].reshape(1,*data[i,self.val_start_idx:].shape)])
         data_test_sharded.append(data_stacked)
       data_test_mapped = lambda alpha: self.get_coneJ(alpha,data[:,self.val_start_idx:].shape[-1])
       self.clean_data_test = [vmap(data_test_mapped)(el) for el in data_test_sharded]#
-      
 
-
-
-
-      

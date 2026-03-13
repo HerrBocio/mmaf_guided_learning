@@ -2,6 +2,7 @@ import jax.numpy as jnp
 from jax import vmap, jit
 from utils import dimComp
 from functools import partial
+from jax import lax
 
 class Model():
 
@@ -17,20 +18,19 @@ class Model():
       self.eps=config.hparams.eps
     
       self.mask = self.mask_gen()
-  
       prior_mean = jnp.ones(dim)*config.model.prior_mean
-      prior_log_scale =jnp.ones(dim)*jnp.log(config.model.prior_var)/2
+      prior_log_var =jnp.ones(dim)*(-jnp.log(config.model.prior_var))
 
-      self.pi_params= [prior_mean,prior_log_scale]
+      self.pi_params= [prior_mean,prior_log_var]
     
       init_mean = jnp.ones(dim)*config.model.init_mean 
-      init_log_scale= jnp.ones(dim)*jnp.log(config.model.init_var)/2
-      self.sharded_params=vmap(lambda dummy: jnp.vstack([init_mean,init_log_scale]))(range(self.shard_size))
-      self.params= [vmap(lambda dummy: jnp.vstack([init_mean,init_log_scale]))(range(config.shard_size)) for el in range((config.data.num_coords)//config.shard_size)]   
-
+      init_log_var= jnp.ones(dim)*jnp.log(config.model.init_var)
+      self.sharded_params=vmap(lambda dummy: jnp.vstack([init_mean,init_log_var]))(range(self.shard_size))
+      self.params= [vmap(lambda dummy: jnp.vstack([init_mean,init_log_var]))(range(config.shard_size)) for el in range((config.data.num_coords)//config.shard_size)]   
   
   
   def pozzo(self, weights:jnp.array):
+
     pozzo=[weights[self.mask[el-1]:self.mask[el]].reshape((self.arch[el-1]+1, self.arch[el])) for el in range(1, len(self.mask))]
     return pozzo
 
@@ -67,7 +67,7 @@ class Model():
       '''
       Computes montecarlo estimator for the empirical risk of the training data 
       '''
-      forward=lambda alpha:(self.ffnn_forward_pass(alpha,weights))
+      forward=lambda alpha: self.ffnn_forward_pass(alpha,weights)
       fun_b = lambda x: (x <= eps).astype(dtype='float32') * x + (x > eps).astype(dtype='float32') * eps
       l=0
       forward_mapped=vmap(forward,in_axes=1)(inp)
@@ -80,7 +80,7 @@ class Model():
       
   @partial(jit, static_argnums=0)
   def crps_loss_forward_pass(self, inp:jnp.array, weights:list, b:jnp.array):
-      forward=lambda alpha:(ffnn_forward_pass(alpha,weights))
+      forward=lambda alpha:ffnn_forward_pass(alpha,weights)
       
       forward_mapped=vmap(forward,in_axes=1)(inp)
       forward_mapped=forward_mapped.reshape((forward_mapped.shape[0]))
@@ -100,10 +100,7 @@ class Model():
   ''' 
   
   def ffnnV(self, inp:jnp.array, weights:list):
-
-      print('inp',inp.shape)
       parPozzo=lambda alpha: self.pozzo(alpha)
-      weights=vmap(parPozzo)(weights)
-  
+      weights=lax.map(parPozzo,weights)
       forward=lambda alpha: self.ffnn_forward_pass(inp,alpha)
-      return jnp.transpose(vmap(forward)(weights))
+      return jnp.transpose(lax.map(forward,weights))

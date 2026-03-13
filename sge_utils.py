@@ -1,7 +1,8 @@
-from jax import grad,vmap
+from jax import grad,vmap,jit
 import jax.numpy as jnp
 import jax.random
-from utils import KLdiag_from_log_scale
+from utils import KLdiag_from_log_scale,chi2_diag_gaussians
+from functools import partial
 
 class MyMultiNormalDiagFromLogScale:	
 #to be placed in a specific script (collect other distros?)
@@ -21,7 +22,7 @@ class MyMultiNormalDiagFromLogScale:
     '''
     
     self._var = jnp.exp(nu)
-    self._log_scale = nu 
+    self._log_scale = nu/2
     self._mean = loc
     self._param_shape = self._mean.shape
     self.seed=seed
@@ -31,7 +32,6 @@ class MyMultiNormalDiagFromLogScale:
     '''
     Method for sampling sample_size times from the distribution
     '''
-    
     subkeys=jax.random.split(self.seed,num=sample_size)
     sample_shape = (sample_size,self._param_shape[0])
     sam=vmap(lambda k : jax.random.normal(k, shape=sample_shape) * jnp.exp(self._log_scale) + (self._mean) )(subkeys)
@@ -46,14 +46,14 @@ class MyMultiNormalDiagFromLogScale:
     return jnp.sum(log_prob)
     
 
-def my_multi_normal(key,*params,) :
+def my_multi_normal(key,*params) :
   '''
   Function that instantiates the class MyMultiNormalDiagFromLogScale 
   '''
   return MyMultiNormalDiagFromLogScale(loc=params[0],nu=params[1],seed=key)#, scale=jnp.diag(params[1]))
 
 
-
+#@partial(jit, static_argnums=(0,2))
 def sge_pwj(score_function,params,dist_builder,rng,num_samples=1):
 
   '''
@@ -82,7 +82,7 @@ def sge_pwj(score_function,params,dist_builder,rng,num_samples=1):
   #traced=jax.jit(grad(surrogate)).trace(params)
   #lowered=traced.lower()
   #compiled=lowered.compile()
-  #print('flops ER\n\t', compiled.cost_analysis())
+  #print('flops ER\n\t', compiled.cost_analysis()[0]['flops'])
   grad_=grad(surrogate)(params)
   return [val_,grad_]
 
@@ -131,9 +131,11 @@ def truePAC(model,m,params):
     Output: 
         bb: pac bound
     '''
-    bb=2*(jnp.log(model.delta))/jnp.sqrt(m) + (.5*model.eps**2)/jnp.sqrt(m)
+    bb=2*(-jnp.log(model.delta))/jnp.sqrt(m) + (.5*model.eps**2)/jnp.sqrt(m)
     kl=KLdiag_from_log_scale(model.pi_params,params,model.dim)
     chi=chi2_diag_gaussians(model.pi_params,params)
+
+  
     theta=(model.Lip*model.inp_size + 1 )
     bb+= (1./jnp.sqrt(m))*kl + jnp.sqrt(theta/(2*m)*chi)
     return bb
@@ -160,7 +162,7 @@ def pacBound(model,m,params):
     '''
     bb=0
     piParams=[model.pi_params[0],model.pi_params[1]]#jnp.diag(piParams[1])]
-    bb= 2*(jnp.log(model.delta))/jnp.sqrt(m) + (.5*model.eps**2)/jnp.sqrt(m)
+    bb= 2*(-jnp.log(model.delta))/jnp.sqrt(m) + (.5*model.eps**2)/jnp.sqrt(m)
     kl=KLdiag_from_log_scale(model.pi_params,params,model.dim)
     theta=(model.Lip*model.inp_size+1)  #lambda gamma: 
     bb+= (1./jnp.sqrt(m))*kl+jnp.sqrt((theta/m)*kl*2)

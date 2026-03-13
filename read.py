@@ -1,13 +1,19 @@
 import pickle
 import os
 from metrics import Metrics
+import h5py
+import jax.numpy as jnp
+from plots import mmaf_plot
+
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]='0'#,2,3'
 
 def load_pickle_file(filepath):
     """
     loads the pickle file.
     """
     if not os.path.exists(filepath):
-        raise FileNotFoundError(f"File non trovato: {filepath}")
+        raise FileNotFoundError(f"File not found: {filepath}")
 
     with open(filepath, "rb") as f:
         data = pickle.load(f)
@@ -43,46 +49,54 @@ def inspect_output_structure(output):
     print(output.get("data_test"))
     
 
-if __name__ == "__main__":
-
-    # Validation
-    width=[800,300,100,30,10,10]
-    depth=[3,2,2,2,5,2]
-    priors=[1./10,1./30,1./50,1./70,1./90,1./110,1./130,1./150,1./170,1./190,1./210]
-    Ndraws=50
-    filename="Gaudiamonddata1A4mln"
-    lowest_mean=+jnp.inf
-    lowest_prior=0
+def ensemble_forecast(filename,a_val,horizon):
+    width=[10,10,30,100,300,800]
+    depth=[2,5,2,2,2,3]
+    priors=[10,30,50,70,90,110,130,150,170,190,210]
+    Ndraws=100
+    #draws_shard=100
+    m=1000
+  
     for i in range(len(width)):
+      lowest_crps=+jnp.inf
+      lowest_prior=0
       for pi in priors:
-        print('\n\n\t\tset', width[i],pi)
-        #filepath = "output/model/Gaudiamonddata1A4mln[800^3]_10_8.pkl"
-        filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(1./pi))+'_'+str(8)+".pkl"
+        
+        filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(pi))+'_'+str(a_val)+".pkl"
     
         output = load_pickle_file(filepath)
-    
-        #inspect_output_structure(output)
-
+        data_x=output['data_test']
+        
         model = output["model"]
-        print('len',model.best_params[0].shape)
-        metrics=Metrics(model,output['data_test'],Ndraws)
+        metrics=Metrics(model,data_x,Ndraws,filename)
         metrics.multi_ef()
         metrics.crps_univ_rank()
-        mertrics.rmse_univ()
-        print(metrics.crps_val.shape,metrics.crps_test.shape)
-
-        if metrics.crps_val_mean<lowest_mean:
-          lowest_mean=metrics.crps_val_mean
+        
+        
+        if metrics.crps_val_mean<lowest_crps:
+          lowest_crps=metrics.crps_val_mean
           lowest_prior=pi
 
-          
-    # Test for validated best metrics
-      filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(1./lowest_prior))+'_'+str(8)+".pkl"
+    
+      print('Validated prior  [', width[i],'^',depth[i],']:  ',lowest_prior)
+      filepath = "output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(lowest_prior))+'_'+str(a_val)+".pkl"
 
+      
+      
       output = load_pickle_file(filepath)
+      print('min it ',output['best_training']['min_it'])
       validated_model = output["model"]
-      validated_metrics=Metrics(model,output['data_test'],Ndraws,filename)
-      metrics.multi_ef()
-      metrics.crps_univ_rank()
+      target=(output['training_history']['train_error'][output['best_training']['min_it']] + output['training_history']['val_grad'][output['best_training']['min_it']][:,-1]).mean(axis=0)
+      validated_metrics=Metrics(validated_model,data_x,Ndraws,filename)
+      validated_metrics.multi_ef()
+      validated_metrics.crps_univ_rank()
+      validated_metrics.rmse_univ_rank()
       
+      emp_risk=output['training_history']['train_error'][output['best_training']['min_it']]
+      validated_metrics.true_pac(m,emp_risk)
+
+      #print('& $['+str(width[i])+'^'+str(depth[i])+']$ &', jnp.round(target,decimals=4),'&',jnp.round(validated_metrics.true_pac_train,decimals=4),'&','$N(0,1/',lowest_prior,')$','&',jnp.round(validated_metrics.crps_val_mean,decimals=4),'&',jnp.round(validated_metrics.rmse_val_mean,decimals=4),'&',horizon,'&',jnp.round(validated_metrics.crps_test_mean,decimals=4),'&',jnp.round(validated_metrics.rmse_test_mean,decimals=4))
+    
       
+      mmaf_plot(validated_metrics,lowest_prior,width[i],depth[i],[output['training_history']['val_jest'], output['training_history']['val_grad'] ],output["epochs"])
+
