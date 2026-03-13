@@ -134,6 +134,8 @@ def truePAC(model,m,params):
     bb=2*(-jnp.log(model.delta))/jnp.sqrt(m) + (.5*model.eps**2)/jnp.sqrt(m)
     kl=KLdiag_from_log_scale(model.pi_params,params,model.dim)
     chi=chi2_diag_gaussians(model.pi_params,params)
+
+  
     theta=(model.Lip*model.inp_size + 1 )
     bb+= (1./jnp.sqrt(m))*kl + jnp.sqrt(theta/(2*m)*chi)
     return bb

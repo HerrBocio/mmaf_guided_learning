@@ -7,6 +7,9 @@ from numpy import quantile
 from jax.numpy import sum
 from jax import vmap
 from utils import create_folder
+from scipy.stats import  chisquare,kstest
+from scipy.stats import randint
+import numpy as np
 
 def pit_value(ef,b):
   q=lambda x: (b<=x)*0 + (b>x)*1
@@ -15,7 +18,7 @@ def pit_value(ef,b):
   return s
 
     
-def mmaf_plot(metrics,pi,width,depth): 
+def mmaf_plot(metrics,pi,width,depth,min_error,epochs): 
     pathF='metrics/figures/'
     list_coords = range(metrics.data_val.shape[0])
     pathPrior=pathF+metrics.filename+'/ef/'+'[' + str(width) +'^'+str(depth)+ ']'+'/'
@@ -26,7 +29,11 @@ def mmaf_plot(metrics,pi,width,depth):
     for Coord in list_coords:
       
       pitMap=vmap(pit_value,in_axes=(1,0))(metrics.ef_test[Coord,:,:],metrics.data_test[Coord,-1,:])
-      
+      #print(pitMap)
+      Xtesting= chisquare(f_obs=pitMap)#.pvalue
+      kstesting = kstest(pitMap,randint.rvs(low=0,high=1000,size=100)).pvalue 
+      #print('\n\n\t p-val \t chisq \t ks\n\t\t',Xtesting,'\t',kstesting)
+            
       fig,ax=plt.subplots(figsize=[12,5])
       ax.hist(pitMap, histtype="bar",cumulative=False,density=True,align='mid')
       plt.tight_layout()
@@ -52,7 +59,7 @@ def mmaf_plot(metrics,pi,width,depth):
           )
           
           ax.plot(range(1,metrics.data_test.shape[-1]+1), metrics.data_test[Coord,-1,:], color='gold', linewidth=0.5)
-          ax.set_ylim(-.7, .7)
+          #ax.set_ylim(-.7, .7)
           ax.set_xlabel('Forecasting Horizons',fontsize=21)
         
       custom_lines = [Line2D([0], [0],marker='s', color=cmaplist[60+15*(0+1)], lw=8),
@@ -70,5 +77,23 @@ def mmaf_plot(metrics,pi,width,depth):
       plt.savefig(pathPrior + 'mmaf_ef_' + metrics.filename + '_[' + str(width) +'^'+str(depth)+ ']_'+  str(pi)+'_'+str(8)+'_'+str(Coord)+'.jpg',bbox_inches='tight')
       plt.savefig(pathPrior + 'mmaf_ef_' + metrics.filename + '_[' + str(width) +'^'+str(depth)+ ']_'+  str(pi)+'_'+str(8)+'_'+str(Coord)+'.eps',bbox_inches='tight',format='eps')
       plt.close()
+
+    
+    plt.figure(figsize=(6, 3))                  
+    #plt.subplot(311)
+    plt.yscale("log")
+    
+    plt.plot(range(1,epochs+1),min_error[0][:,:,0].mean(axis=1)+min_error[1][:,:,0].mean(axis=1),linewidth=1,color='red')
+
+    plt.xlabel("epochs")
+    #plt.xticks(range(Nbatches*10,len(bound_train)*Nbatches+1,Nbatches*10),list(range(10, len(bound_train)+1,10)))
+
+    plt.legend(['Target function','MC Target function'])#,'vacuity threshold'])
+    plt.tight_layout()
+    plt.savefig(pathPrior + 'mmaf_ef_overlap' + metrics.filename + '_[' + str(width) +'^'+str(depth)+ ']_'+  str(pi)+'_'+str(8)+'_'+'.png')
+
+    plt.savefig(pathPrior + 'mmaf_ef_overlap' + metrics.filename + '_[' + str(width) +'^'+str(depth)+ ']_'+  str(pi)+'_'+str(8)+'_'+'.eps',format='eps')
+    
+    plt.close()
     
                             

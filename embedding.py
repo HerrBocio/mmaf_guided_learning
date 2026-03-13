@@ -23,11 +23,7 @@ class Embedding():
         self.q = config.data.q
 
     def gather_1d(self,data, indices):
-        #print('data',data[:,:30])
-        #print('idx',indices)
-        
-        flat_idx=jnp.ravel_multi_index(indices.T,data.shape)#,order='F')
-        
+        flat_idx=jnp.ravel_multi_index(indices.T,data.shape)
         return data.flatten()[flat_idx]
 
       
@@ -55,10 +51,8 @@ class Embedding():
         '''
         coord=jnp.transpose(vmap(lambda dummy: jnp.array([]))(range(3)))
         for t in reversed(range(self.p)):  # self.p = p
-        # aggiunge alla fine di coord il vettore dentro tf.constant()
             coord1=jnp.array([jnp.array([- (t+1), v, u]) for v in range(-int(jnp.floor(self.c*(t + 1)/jnp.sqrt(2))+1), int(jnp.floor(self.c*(t + 1)/jnp.sqrt(2))+1) + 1)  for u in range(-int(jnp.floor(self.c*(t + 1)/jnp.sqrt(2))+1), int(jnp.floor(self.c*(t + 1)/jnp.sqrt(2))+1) + 1)])
             coord=jnp.vstack([coord,coord1])
-        #print('coord',coord)
         self.cone_shift=coord
 
       
@@ -86,17 +80,18 @@ class Embedding():
         x=jnp.broadcast_to(x,[x.shape[0],cone_ends_shape,1])
         cone_ends=jnp.broadcast_to(cone_ends,x.shape)
         cone_ends_coordinates=jnp.concat( (x, cone_ends),axis=2)
+      
         #extracts the cone heaps Y_i
         b=self.gather_1d(data,cone_ends_coordinates)
+      
         #selects the coordinate of the truncated cone
         self.get_cone_shiftJ()
         cone_ends_coordinates=jnp.expand_dims(cone_ends_coordinates,2)
         cone_coordinates=cone_ends_coordinates+self.cone_shift
+      
         #extracts the cone truncation X_i
         A=self.gather_1d(data,cone_coordinates)
-        #print('a s',jnp.squeeze(A,axis=2))
         emb=jnp.vstack([jnp.squeeze(A,axis=2),jnp.squeeze(b,axis=1)])
-        #emb=jnp.hstack([jnp.transpose(jnp.squeeze(A,axis=2)),jnp.expand_dims(jnp.squeeze(b,axis=1),axis=-1)])
         return emb
 
       
@@ -127,11 +122,9 @@ class Embedding():
         self.get_cone_shiftJ_3d()
         cone_coordinates=vmap(lambda s: s+self.cone_shift)(cone_ends_coordinates)
         
-       
-
         #extracts the cone heaps Y_i
-        
         b=self.gather_2d(data,cone_ends_coordinates)
+      
         #extracts the cone truncation X_i
         A=vmap(lambda c_idx: self.gather_2d(data,c_idx))(cone_coordinates)
         
@@ -196,7 +189,6 @@ class Embedding():
       
       self.Ncones = int(self.val_start_idx//self.a) 
       self.Nbatches=self.Ncones//self.m_batch
-      #print(self.a,self.Nbatches,self.Ncones,self.data_name,data.shape)
 
       data=data[:,int(data.shape[-1]%self.a):]
       print(data.shape[-1]%self.a-1,data.shape)
@@ -210,7 +202,7 @@ class Embedding():
       for ls in list_shards:
         data_sharded=[]
         for t_batch_idx in range(self.Nbatches):
-          data_stacked= jnp.empty((0,2*self.c*self.p+1,self.a*self.m_batch))  #self.val_start_idx-1))
+          data_stacked= jnp.empty((0,2*self.c*self.p+1,self.a*self.m_batch))  
           for i in ls:
             data_stacked=jnp.vstack([data_stacked,data[i, t_batch_idx*self.m_batch*self.a:(t_batch_idx+1)*self.m_batch*self.a].reshape(1, *data[i,t_batch_idx*self.m_batch*self.a:(t_batch_idx+1)*self.m_batch*self.a].shape)])
           data_sharded.append(data_stacked)
@@ -227,17 +219,3 @@ class Embedding():
       data_test_mapped = lambda alpha: self.get_coneJ(alpha,data[:,self.val_start_idx:].shape[-1])
       self.clean_data_test = [vmap(data_test_mapped)(el) for el in data_test_sharded]#
 
-
-      ''' 
-          data_stacked=jnp.vstack([data_stacked,data[i,-(Ncones_test-1)*self.a:].reshape(1,data[i,-(Ncones_test-1)*self.a:].shape[0],data[i,-(Ncones_test-1)*self.a:].shape[1])])
-        data_test_sharded.append(data_stacked)
-      data_test_mapped = lambda alpha: self.get_coneJ(alpha,data[:,-(Ncones_test-1)*self.a:].shape[-1])
-      self.clean_data_test = [vmap(data_test_mapped)(el) for el in data_test_sharded]#
-      print(data[i,-(Ncones_test-1)*self.a::self.a])
-      print(self.clean_data_test)
-
-      for i in ls:
-        data_stacked=jnp.vstack([data_stacked,data[i,self.val_start_idx:].reshape(1,data[i,self.val_start_idx:].shape[0],data[i,self.val_start_idx:].shape[1])])
-        data_test_sharded.append(data_stacked)
-      '''
-      

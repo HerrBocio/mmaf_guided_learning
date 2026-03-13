@@ -11,8 +11,8 @@ class Metrics():
 
     data_=jnp.empty((0,data[0].shape[-2],data[0].shape[-1]))
     params_=jnp.empty((0,model.best_params[0].shape[-2],model.best_params[0].shape[-1]))
-    for par in model.best_params: #zip(model.best_params,data):
-      #data_=jnp.vstack([data_,el])
+    for par,el in zip(model.best_params,data):
+      data_=jnp.vstack([data_,el])
       params_=jnp.vstack([params_,par])
       #print(data)
     data_=data[0]
@@ -39,9 +39,8 @@ class Metrics():
 
   def multi_ef_new(self):
     ef=jnp.empty((0,self.Ndraws,19))
-    print(self.data.shape)
     for j in range(self.data_test.shape[0]):
-       coord_ef=self.multi_ef_mapped(self.data[j,:-1,:],self.params[j,:,:],rng=int((j+1)*5000))
+       coord_ef=self.multi_ef_mapped(self.data[j,:-1,:],self.params[j,:,:],rng=10*(j+1))
        ef=jnp.vstack([ef,coord_ef.reshape((1,*coord_ef.shape))])
 
     self.ef_val=ef[:,:,0].reshape((*ef[:,:,0].shape,1))
