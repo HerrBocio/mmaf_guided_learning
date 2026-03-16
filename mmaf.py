@@ -1,9 +1,3 @@
-"""
-Universal JAX runtime preamble
-Supports CPU, CUDA GPUs, ROCm GPUs, Apple Metal, and TPU
-Handles multi-accelerator setups automatically
-"""
-
 import os
 import platform
 
@@ -89,7 +83,7 @@ from model import Model
 import argparse
 from embedding import Embedding
 import pickle
-from utils import ws
+from utils import ws,create_folder
 from read import ensemble_forecast
 from train import train
 
@@ -129,7 +123,9 @@ def default_config(hparams):
   config = edict()
   print(ws)
   config.PATH_MOD = ws + '/output/model/'
+  #TODO
   config.PATH_LOG = ws + '/output/log/'
+  create_folder(config.PATH_MOD)
   #config.PATH_FORECAST = ws + '/output/forecast/'
 
   config.shard_size=hparams['shard_size']
