@@ -14,7 +14,7 @@ git clone https://github.com/leonardo-bardi/mmaf_guided_learning
 jax v0.9.2
 optax
 easydict
-pickle`
+pickle
 ```
 
 ### Start the training routine
