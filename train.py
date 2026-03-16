@@ -1,8 +1,8 @@
 from jax import grad, jit,vmap,random
 import jax.numpy as jnp
 from optax import adam,apply_updates
-from utils import * 
-from sge_utils import *
+from src.utils import * 
+from src.sge_utils import *
 from tqdm import trange,tqdm
 import os
 from model import Model

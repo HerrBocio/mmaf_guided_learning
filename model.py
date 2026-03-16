@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 from jax import vmap, jit
-from utils import dimComp
+from src.utils import dimComp
 from functools import partial
 from jax import lax
 

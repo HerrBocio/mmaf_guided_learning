@@ -1,27 +1,24 @@
 import os
 import platform
 
-# -------------------------------------------------
-# Environment safety
-# -------------------------------------------------
-
-os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
-os.environ.setdefault("XLA_PYTHON_CLIENT_MEM_FRACTION", ".90")
-os.environ.setdefault("JAX_PLATFORM_NAME", "")  # allow auto detect
-
-# Optional: deterministic behavior
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
-
-# -------------------------------------------------
-# Imports
-# -------------------------------------------------
-
 import jax
 import jax.numpy as jnp
 
 # -------------------------------------------------
 # Device detection
 # -------------------------------------------------
+
+
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]='0'
+os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
+
+os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
+os.environ.setdefault("XLA_PYTHON_CLIENT_MEM_FRACTION", ".90")
+os.environ.setdefault("JAX_PLATFORM_NAME", "")  # allow auto detect
+
+
+
 
 DEVICES = jax.devices()
 DEVICE_COUNT = len(DEVICES)
@@ -56,13 +53,6 @@ def shard(x):
     return jax.device_put_sharded(list(x), jax.devices())
 
 # -------------------------------------------------
-# PRNG setup
-# -------------------------------------------------
-
-def create_key(seed=0):
-    return jax.random.PRNGKey(seed)
-
-# -------------------------------------------------
 # Multi-device helpers
 # -------------------------------------------------
 
@@ -83,14 +73,9 @@ from model import Model
 import argparse
 from embedding import Embedding
 import pickle
-from utils import ws,create_folder
-from read import ensemble_forecast
+from src.utils import ws,create_folder
+from eval.read import ensemble_forecast
 from train import train
-
-#os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"]='0'
-#os.environ['XLA_PYTHON_CLIENT_PREALLOCATE']='false'
-
 
 def get_hparams(eps_default=3, ht_default=1, delta_default=0.025, p_default=1, shard_size_default=1, data_name_default='Gaudiamonddata1A4mln', width_default=10, depth_default=2, init_mean_default=0, init_var_default=.25, prior_mean_default=0, prior_var_default=.1):
 
@@ -140,7 +125,7 @@ def default_config(hparams):
 
   
   if config.data.name == 'Gaudiamonddata1A4mln' or config.data.name== 'NIGdiamonddata1A4mln':
-      config.data.epochs = 4
+      config.data.epochs = 60
       config.data.m_batch=1000
       config.data.num_coords = 8
       config.data.val_start_idx = int(0.999192001*1000001)
@@ -182,9 +167,9 @@ def default_config(hparams):
 if __name__ == '__main__':
 
   
-  width=[10,10,30,100,300,800]
+  width=[4]#10,10,30,100,300,800]
   depth=[2,5,2,2,2,3]
-  shard_size=[4,8,8,8,8,2]
+  shard_size=[8,8,8,8,8,2]
   priors=[10]#,30,50,70,90,110,130,150,170,190,210]
   for i in range(len(width)):
     for pi in priors:
