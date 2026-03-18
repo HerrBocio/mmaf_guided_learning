@@ -218,8 +218,8 @@ def train_unbounded():
               
               train_shard=jnp.mean(train_shard,axis=1)
               
-              pac_shard   = lambda alpha: pac_unbounded(model,batch,embedding.theta, embedding.VarZtrx,model.dim,alpha,key) # TODO different key?
-              pac_shard   = vmap(pac_shard)(model.params[ds_idx])
+              pac_shard   = lambda alpha,beta: pac_unbounded(model,beta,embedding.theta, embedding.VarZtrx,model.dim,alpha,key)
+              pac_shard ,_  = vmap(pac_shard,in_axes=(0,0))(model.params[ds_idx],batch)
               train_stacked= jnp.hstack([train_stacked,train_shard])
               pac_stacked= jnp.hstack([pac_stacked,pac_shard])
       

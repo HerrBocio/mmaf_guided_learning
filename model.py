@@ -68,16 +68,16 @@ class Model():
          x=vmap(activation)(x)  #activation
          #jax.debug.print("x shape after activation {}",x.shape)
       return jnp.matmul(x,weights[-1][:-1,:])
-  
   @partial(jit, static_argnums=0)
-  def ffnn_vmap_over_forward_pass(self, inp:jnp.array, weights:list):	
-      '''
-      ...
-      '''
-      forward=lambda alpha:(self.ffnn_forward_pass(alpha,weights))
-      forward_mapped=vmap(forward,in_axes=1)(inp)
-      hX=forward_mapped.reshape((forward_mapped.shape[0]))
-      return hX
+  def ffnn_forward_pass_several_weights(self,inp,weights):	
+    '''
+    Computes montecarlo estimator for the empirical risk of the training data 
+    '''
+    #jax.debug.print("shape: {}",weights)
+    forward_weights=lambda alpha:self.ffnn_forward_pass(inp,alpha)
+    forward_mapped=jax.vmap(forward_weights)(weights) #0 or 1?,in_axes=0
+    forward_mapped=forward_mapped.reshape((forward_mapped.shape[0]))
+    return forward_mapped
   
   @partial(jit, static_argnums=0)
   def ffnn_loss_forward_pass(self, inp:jnp.array, weights:list, b:jnp.array, eps:jnp.float32):	
@@ -91,8 +91,18 @@ class Model():
       forward_mapped=forward_mapped.reshape((forward_mapped.shape[0]))
       l=vmap(jnp.abs)(forward_mapped-b)
       l=vmap(fun_b)(l)
-      l=jnp.mean(l)#-b
+      l=jnp.mean(l)
       return l
+  
+  @partial(jit, static_argnums=0)
+  def for_hX_comp(self, inp:jnp.array, weights:list):	
+      '''
+      Computes montecarlo estimator for the empirical risk of the training data 
+      '''
+      forward=lambda alpha:(self.ffnn_forward_pass(alpha,weights))
+      forward_mapped=vmap(forward,in_axes=1)(inp)
+      forward_mapped=forward_mapped.reshape((forward_mapped.shape[0]))
+      return forward_mapped
       
       
   @partial(jit, static_argnums=0)
