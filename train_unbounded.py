@@ -114,7 +114,7 @@ def coordit_unbounded(model,optimizer,theta,VarZtrx,params,batch,opt_state,rng):
   m = batch[-1].shape[0]
   kl_mapped = lambda beta: target_func_unbounded_KL(model.pi_params,beta,m)
   #stochastic gradient estimator for the gradient of the expected empirical risk
-  val_jest,jest = sge_pwj(scorf,params,my_multi_normal,rng)
+  val_jest,jest = sge_pwj(scorf,params,my_multi_normal,rng,num_samples=10)
         
   #computes the value and the gradient (using jax.grad) of the second term of the objective function
   val_grad=kl_mapped(params)
@@ -171,8 +171,6 @@ def train_unbounded():
     
       train_epoch= jnp.empty((0,config.data.num_coords))
       pac_epoch  = jnp.empty((0,config.data.num_coords))
-      jax.debug.print("dim {}",model.dim)
-      jax.debug.print("mask {}",model.mask)
 
       for epoch in trange(1,config.data.epochs+1, desc='epochs', colour='green'):
     
@@ -218,8 +216,8 @@ def train_unbounded():
               
               train_shard=jnp.mean(train_shard,axis=1)
               
-              pac_shard   = lambda alpha,beta: pac_unbounded(model,beta,embedding.theta, embedding.VarZtrx,model.dim,alpha,key)
-              pac_shard ,_  = vmap(pac_shard,in_axes=(0,0))(model.params[ds_idx],batch)
+              pac_shard   = lambda alpha,beta: pac_unbounded(model,beta,embedding.theta, embedding.VarZtrx,alpha,key)
+              pac_shard = vmap(pac_shard,in_axes=(0,0))(model.params[ds_idx],batch)
               train_stacked= jnp.hstack([train_stacked,train_shard])
               pac_stacked= jnp.hstack([pac_stacked,pac_shard])
       

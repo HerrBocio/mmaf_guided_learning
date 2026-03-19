@@ -196,10 +196,6 @@ def empirical_risk(model,batch,realization):
     '''
     masking= lambda alpha: model.pozzo(alpha)
     realization=vmap(masking,in_axes=0)(realization)
-    #jax.debug.print("realization {}",realization)
-    #jax.debug.print("realization[0] shape in empr comp {}",realization[0].shape)
-    #jax.debug.print("realization[1] shape in empr comp {}",realization[1].shape)
-    #jax.debug.print("realization[2] shape in empr comp {}",realization[2].shape)
     empR=lambda beta : model.ffnn_loss_forward_pass(batch[:-1,:],beta,batch[-1,:],model.eps)
     eU=vmap(empR)(realization)
     return jnp.mean(eU,axis=0)
@@ -211,13 +207,8 @@ def hX_computation(model,batch,realization):
     '''
     single realization must have shape: (1,dim)
     '''
-    #A = batch[:-1,:]
-    #jax.debug.print("realization in hX computation shape {}",realization.shape)
     masking= lambda alpha: model.pozzo(alpha)
     realization=vmap(masking,in_axes=0)(realization)
-    #jax.debug.print("realization[0] shape in hX comp {}",realization[0].shape)
-    #jax.debug.print("realization[1] shape in hX comp {}",realization[1].shape)
-    #jax.debug.print("realization[2] shape in hX comp {}",realization[2].shape)
     empR=lambda beta : model.for_hX_comp(batch[:-1,:],beta)
     eU=vmap(empR)(realization)
     return eU
@@ -228,74 +219,50 @@ def hX_computation(model,batch,realization):
 def target_func_unbounded_KL(piParams,rhoParams,m):
    return KLdiag_from_log_scale(piParams,rhoParams)/jnp.sqrt(m)
 
-def target_func_unbouded_sampling_from_rho(model, batch, theta, VarZtrx, realization):
+def target_function_unbounded_without_empRisk(model, batch, theta, VarZtrx, realization):
   """
-  just 1 realization with shape (1,dim)
+  single realization must have shape: (1,dim)
   """
   m = batch[-1].shape[0]
-  #jax.debug.print("batch[-1] shape {}",batch[-1].shape)
-  #jax.debug.print("batch[:-1,:] shape {}",batch[:-1,:].shape)
-  tf = empirical_risk(model, batch, realization)
   masking= lambda alpha: model.pozzo(alpha)
-  #jax.debug.print("weights {}",weights)
   hX=hX_computation(model,batch,realization)
-  #jax.debug.print("hX shape tf {}",hX.shape)
-  #jax.debug.print("hX shape {}",hX.shape) #= (1,1000)
   weights=vmap(masking,in_axes=0)(realization)
-  rho_Liph = Lip_realizations_masked(weights)
-  rho_Liph_sq = jnp.mean(jnp.power(rho_Liph,2))
+  Liphs = Lip_realizations_masked(weights)
+  rho_Liph = jnp.mean(Liphs)
+  rho_Liph_sq = jnp.mean(jnp.power(Liphs,2))
   abs_mean = lambda beta: jnp.abs(jnp.mean(beta))
   abs_E_hX = jax.vmap(abs_mean)(hX)
-  rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, rho_Liph))
+  rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liphs))
   rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
-  tf += model.inp_size*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
-  tf += rho_Liph_sq*model.inp_size**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
-  tf += model.inp_size * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
+  tf = model.inp_size*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
   tf += rho_hXsq/(2*jnp.sqrt(m))
-  tf += theta*model.inp_size/model.delta * rho_Liph
+  tf += model.inp_size*theta/model.delta * rho_Liph
+  tf += model.inp_size * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
+  tf += model.inp_size**2*rho_Liph_sq/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
+  return tf
+
+def target_function_unbounded(model, batch, theta, VarZtrx, realization):
+  """
+  single realization must have shape: (1,dim)
+  """
+  tf = empirical_risk(model, batch, realization)
+  tf += target_function_unbounded_without_empRisk(model, batch, theta, VarZtrx, realization)
   return tf
 
 def tf_unbounded(model, batch, theta, VarZtrx):
-   return lambda beta: target_func_unbouded_sampling_from_rho(model, batch, theta, VarZtrx, beta)
+   return lambda beta: target_function_unbounded(model, batch, theta, VarZtrx, beta)
 
-def pac_unbounded(model, batch, theta, VarZtrx, dim, rho_params, rng, N= 10, shard_size = 5): # TODO checken ob wirklich alle terme dabei
+def pac_unbounded(model, batch, theta, VarZtrx, rho_params, rng, N= 10):
     """
     estimate of the PAC Bayesian bound (without the empirical error) using several realizations drawn from rho
     """
     m = batch[-1].shape[0]
-    #jax.debug.print("batch[-1] shape pac {}",batch[-1].shape)
-    #jax.debug.print("batch[:-1,:] shape pac {}",batch[:-1,:].shape)
-    masking = lambda alpha: model.pozzo(alpha)
     realizations = dist_sample(rho_params, N, rng)
-    realizations = realizations.reshape((N//shard_size,shard_size,dim))
-    #jax.debug.print("realizastions shpae {}", realizations.shape)
-    bounds = []
-    rho_Lips = []
-    for el in realizations:
-        hX=hX_computation(model,batch,el)
-        masking= lambda alpha: model.pozzo(alpha)
-        el_masked=vmap(masking,in_axes=0)(el)
-        Liphs = Lip_realizations_masked(el_masked) 
-        rho_Liph = jnp.mean(Liphs)
-        rho_Liph_sq = jnp.mean(jnp.power(Liphs,2))
-        abs_mean = lambda beta: jnp.abs(jnp.mean(beta, axis=0))
-        #hX = jnp.stack(hX, axis=1)
-        #jax.debug.print("hX shape pac {}",hX.shape)
-        abs_E_hX = jax.vmap(abs_mean)(hX)
-        rho_abs_E_hX_Liph = jnp.mean(jnp.multiply(abs_E_hX, Liphs))
-        rho_hXsq = jnp.mean(jnp.power(abs_E_hX,2))
-        tf =  model.inp_size*rho_Liph*(theta + VarZtrx/jnp.sqrt(m))
-        tf += rho_Liph_sq*model.inp_size**2/(2*jnp.sqrt(m))*(VarZtrx+theta**2)
-        tf +=  model.inp_size * theta / jnp.sqrt(m) * rho_abs_E_hX_Liph
-        tf += rho_hXsq/(2*jnp.sqrt(m))
-        tf += theta*model.inp_size/model.delta * rho_Liph # rho_Liph as an estimation for sup rho[Lip(h)]
-        constants = theta*(1+1/model.delta)+jnp.log(1/model.delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))
-        KLdivSqrtm = target_func_unbounded_KL(model.pi_params,rho_params,m)
-        bound = tf + KLdivSqrtm + constants
-        bounds.append(bound)
-        rho_Lips.append(rho_Liph)
-    jax.debug.print("success {}",jnp.mean(jnp.array(bounds)))
-    return [jnp.mean(jnp.array(bounds)),jnp.mean(jnp.array(rho_Lips))]
+    bound = target_function_unbounded_without_empRisk(model,batch,theta,VarZtrx,realizations)
+    constants = theta*(1+1/model.delta)+jnp.log(1/model.delta)/jnp.sqrt(m)+VarZtrx/(2*jnp.sqrt(m))
+    bound += constants
+    bound += target_func_unbounded_KL(model.pi_params,rho_params,m)
+    return bound
 
 
 

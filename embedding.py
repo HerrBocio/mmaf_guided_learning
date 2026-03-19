@@ -267,10 +267,11 @@ class Embedding():
       print(lambda_,self.A,hatc)
 
       if self.data_name=='Gaudiamonddata1A4mln' or  self.data_name=='NIGdiamonddata1A4mln':
-        a_search=lambda x : lambda_*self.h_t*(x-self.p) - np.log(self.m_batch) 
+        a_search=lambda x : lambda_*self.h_t*(x-self.p) - np.log(self.m_batch)/2
         self.a = int(np.ceil(newton(a_search,1)))
         print("a", self.a) #now a=3?? why? TODO
       elif self.data_name=='OLR_full':
+        print('Please check if a_search is correct')
         a_search=lambda x : jnp.round(lambda_,decimals=3)*self.h_t*(x-self.p) + np.log(x/(self.val_start_idx)) # haven't checked if this is correct
         self.a = int(np.ceil(newton(a_search,1)))
       
