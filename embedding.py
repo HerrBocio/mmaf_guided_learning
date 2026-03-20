@@ -2,6 +2,7 @@ import jax.numpy as jnp
 from jax import vmap, jit
 import numpy as np
 from scipy.optimize import newton
+from src.utils import theta_r,truncated_cov
 
 class Embedding(): 
 
@@ -219,3 +220,98 @@ class Embedding():
       data_test_mapped = lambda alpha: self.get_coneJ(alpha,data[:,self.val_start_idx:].shape[-1])
       self.clean_data_test = [vmap(data_test_mapped)(el) for el in data_test_sharded]#
 
+    def embedded_data_unbounded(self):
+
+      data=np.load(self.data_path+'/data.npy')
+      if self.data_name=='Gaudiamonddata1A4mln':
+        self.A=3.840956
+        hatc=1
+        VarLevySeed = 0.5 # TODO is that correct?
+      elif self.data_name== 'NIGdiamonddata1A4mln':
+        self.A=3.868912
+        hatc=1  
+        VarLevySeed = 0.5 # TODO is that correct?
+      else:  
+        VarLevySeed = 0.5 # TODO is that correct?
+        Y=np.array(list(data))
+        nrY, ncY = Y.shape
+        
+        dt=2
+        dy=10
+        
+        ndata = nrY * ncY
+
+        
+        s1 = np.nansum(Y)
+        s2 = np.nansum(Y**2)
+        s3 = np.nansum(Y**3)
+        s4 = np.nansum(Y**4)
+        
+        k2 = (1 / (ndata * (ndata - 1))) * (ndata * s2 - s1**2)
+        
+        d01 = Y.copy()
+        
+        d01[:, 0:ncY-dt] = d01[:, dt:ncY]
+        d01[:, ncY-dt:] = np.nan
+        g01 = np.nanmean((Y - d01)**2) / k2
+        
+        d10 = Y.copy()
+        d10[0:nrY-dy, :] = d10[dy:nrY, :]
+        d10[nrY-dy:, :] = np.nan
+        g10 = np.nanmean((Y - d10)**2) / k2
+        
+        self.A = -np.log(1 - g01 / 2) / ( dt)
+        hatc = -(self.A * dy) / np.log(1 - g10 / 2)
+
+      
+      lambda_=self.A * np.minimum(2.0, hatc) / (2*hatc)
+      
+      self.c=int(np.floor(hatc))
+        
+      data=data[:self.num_coords+2*self.c*self.p,:]*self.slope+self.q
+        
+      print(lambda_,self.A,hatc)
+
+      if self.data_name=='Gaudiamonddata1A4mln' or  self.data_name=='NIGdiamonddata1A4mln':
+        a_search=lambda x : lambda_*self.h_t*(x-self.p) - np.log(self.m_batch)/2
+        self.a = int(np.ceil(newton(a_search,1)))
+        print("a", self.a) #now a=3?? why? TODO
+      elif self.data_name=='OLR_full':
+        print('Please check if a_search is correct')
+        a_search=lambda x : jnp.round(lambda_,decimals=3)*self.h_t*(x-self.p) + np.log(x/(self.val_start_idx)) # haven't checked if this is correct
+        self.a = int(np.ceil(newton(a_search,1)))
+      
+      self.Ncones = int(self.val_start_idx//self.a) 
+      self.Nbatches=self.Ncones//self.m_batch
+
+      data=data[:,int(data.shape[-1]%self.a):]
+      print(data.shape[-1]%self.a-1,data.shape)
+      
+      
+      data_mapped = lambda alpha: self.get_coneJ(alpha,self.a*self.m_batch)  #self.val_start_idx-1)
+      list_shards= ([jnp.array([jnp.arange(coord-self.p*self.c,coord+self.p*self.c+1) for coord in range(element, element+self.shard_size)]) for element in range(self.p*self.c, data.shape[0]-self.p*self.c, self.shard_size)])
+      
+      clean_data=[]
+      
+      for ls in list_shards:
+        data_sharded=[]
+        for t_batch_idx in range(self.Nbatches):
+          data_stacked= jnp.empty((0,2*self.c*self.p+1,self.a*self.m_batch))  
+          for i in ls:
+            data_stacked=jnp.vstack([data_stacked,data[i, t_batch_idx*self.m_batch*self.a:(t_batch_idx+1)*self.m_batch*self.a].reshape(1, *data[i,t_batch_idx*self.m_batch*self.a:(t_batch_idx+1)*self.m_batch*self.a].shape)])
+          data_sharded.append(data_stacked)
+        clean_data_t = [vmap(data_mapped)(el) for el in data_sharded]#
+        clean_data.append(clean_data_t)
+      self.clean_data=clean_data
+      
+      data_test_sharded=[]
+      for ls in list_shards:
+        data_stacked= jnp.empty((0,2*self.c*self.p+1,data[i,self.val_start_idx:].shape[-1]))
+        for i in ls:
+          data_stacked=jnp.vstack([data_stacked,data[i,self.val_start_idx:].reshape(1,*data[i,self.val_start_idx:].shape)])
+        data_test_sharded.append(data_stacked)
+      data_test_mapped = lambda alpha: self.get_coneJ(alpha,data[:,self.val_start_idx:].shape[-1])
+      self.clean_data_test = [vmap(data_test_mapped)(el) for el in data_test_sharded]#
+
+      self.theta = theta_r(self.A, hatc, self.a-self.p, VarLevySeed) 
+      self.VarZtrx = truncated_cov(self.A, hatc, self.a-self.p, 0, 0, VarLevySeed)

@@ -112,7 +112,7 @@ def chi2_diag_gaussians(piParams,rhoParams):
 
 
 
-def KLdiag_from_log_scale(piParams,rhoParams,NNsize):
+def KLdiag_from_log_scale(piParams,rhoParams):
     
     '''
     computes the KL divergence for two multivariate gaussians, with respect to the log scale
@@ -160,7 +160,19 @@ def KLdiag_grad(piParams,rhoParams,NNsize):
     return jnp.transpose(gradient)
 
 
+def naiveLip(weights):
+    prod=1
+    for el in weights:
+        prod*= jnp.linalg.norm(el[:-1,:],ord=2)          
+    return prod
 
+def Lip_realizations_masked(realizations_masked):
+
+    '''
+    takes masked realizations, outputs the Lipschitz constant of each of them
+    '''
+    Lips=jax.vmap(naiveLip)(realizations_masked)
+    return Lips
 
 def LipC(model,shard_size=int(1e2),N=int(1e3)):
 
@@ -173,11 +185,6 @@ def LipC(model,shard_size=int(1e2),N=int(1e3)):
     Output L
     '''
     parPozzo=lambda alpha: model.pozzo(alpha)
-    def naiveLip(weights):
-      prod=1
-      for el in weights:
-        prod*= jnp.linalg.norm(el[:-1,:],ord=2)          
-      return prod
     L=0
     for el in range(N//shard_size):
       realizations = dist_sample(model.pi_params,num_realizations=shard_size,seed=random.key(el))
@@ -215,3 +222,54 @@ def rescalingInv(d,slope,q,eps=0):
   '''
   return (d - q)/slope
 
+def truncated_cov(A, c, r, u, tau, VarLevySeed):
+    """
+    returns Cov(Z_t(x)^(r), Z_{t+tau}(x+u)^(r)) = Var(Lambda') exp(-Au) int_{A_0(0)\setminus V_{(0,0)}^r \cap A_{tau}(u)\setminus V__{(tau,u)}^r} exp(2As) ds
+
+    for u=tau=0, this is Var(Z_t(x)^(r))
+    """
+        # the formula below works for tau<=0, u in |R. If tau>0, we have to set tau=-tau, u=-u, as Cov(Z_tau(u)^r, Z_0(0)^r) = Cov(Z_0(0)^r, Z_{-tau}(-u)^r) because of stationarity
+    if tau > 0:
+        tau = -tau
+        u = -u
+    #r = a-p
+    if tau <= -r:
+        return 0
+    int = c/A * (-np.exp(-2*A*r)*(tau+r+1/(2*A)) + np.exp(2*A*tau)/(2*A))
+
+    return VarLevySeed * np.exp(-A*u) * int
+
+def truncated_covs_between_all_members_of_cone(A, c, h_s, h_t, r, p, VarLevySeed):
+    """
+    returns: 
+        covs_XY: a vector containing the covariances between the apex of the cone Y_i and X_i^{(j)}, j=1,...,a(p,c)
+        covs_XX: a matrix containing Cov(X_i^{(j)},X_i^{(k)}) for all j,k = 1,...,a(p,c)
+        for the truncated MMAF Z_t(x)^(r)
+    """
+    distances_XY = []
+    for t in reversed(range(p)): # t+1 in {p, p-1, p-2, ..., 1}
+        bt = np.floor(c*(t+1)*h_t/h_s) # b:= argmax {a: a*h_s <= (t+1)*c*h_t}
+        distances_XY.append(jnp.array([[v, -h_t*(t+1)] for v in jnp.arange(-bt*h_s, (bt+1)*h_s, h_s)])) # [spatial pos, temporal pos]
+    distances_XY = jnp.concat(distances_XY, axis=0)
+    covs_XY = jnp.array([truncated_cov(A=A, c=c, r=r, VarLevySeed= VarLevySeed,u=dist[0], tau=dist[1]) for dist in distances_XY])
+
+    distances_XX = []
+    covs_XX = []
+    for t in range(p,0,-1): # t in {p, p-1, p-2, ..., 1}
+        bt = int(np.floor(c*t*h_t/h_s)) # bt:= argmax {a: a*h_s <= (t+1)*c*h_t}
+        for pixel1 in jnp.arange(-bt*h_s,(bt+1)*h_s, h_s):
+            dist_row = []
+            cov_row = []
+            for s in range(p,0,-1):
+                bs = int(np.floor(c*s*h_t/h_s))
+                for pixel2 in jnp.arange(-bs*h_s, (bs+1)*h_s, h_s):
+                    dist_row.append([float(pixel1-pixel2), -h_t*(t-s)])
+                    cov_row.append(truncated_cov(A=A, c=c, r=r, VarLevySeed= VarLevySeed,u = float(pixel1-pixel2), tau = -h_t*(t-s)))
+            distances_XX.append(dist_row)
+            covs_XX.append(cov_row)
+    covs_XX = jnp.array(covs_XX)
+
+    return covs_XY, covs_XX
+
+def theta_r(A,c, r, VarLevySeed):
+    return jnp.sqrt(VarLevySeed*(c*r/A + c/(2*A**2)))*jnp.exp(-A*r)

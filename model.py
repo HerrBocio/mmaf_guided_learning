@@ -8,7 +8,7 @@ class Model():
 
   def __init__(self,config):
           
-      arch=[config.model.inp_size,*list([config.model.width for el in range(1,config.model.depth+1)]),1]
+      arch=[config.model.inp_size,*list([config.model.width for el in jnp.arange(1,config.model.depth+1)]),1]
       dim=dimComp(arch)
 
       self.arch= arch
@@ -25,8 +25,8 @@ class Model():
     
       init_mean = jnp.ones(dim)*config.model.init_mean 
       init_log_var= jnp.ones(dim)*jnp.log(config.model.init_var)
-      self.sharded_params=vmap(lambda dummy: jnp.vstack([init_mean,init_log_var]))(range(self.shard_size))
-      self.params= [vmap(lambda dummy: jnp.vstack([init_mean,init_log_var]))(range(config.shard_size)) for el in range((config.data.num_coords)//config.shard_size)]   
+      self.sharded_params=vmap(lambda dummy: jnp.vstack([init_mean,init_log_var]))(jnp.arange(self.shard_size))
+      self.params= [vmap(lambda dummy: jnp.vstack([init_mean,init_log_var]))(jnp.arange(config.shard_size)) for el in jnp.arange((config.data.num_coords)//config.shard_size)]   
   
   
   def pozzo(self, weights:jnp.array):
@@ -77,6 +77,15 @@ class Model():
       l=jnp.mean(l)#-b
       return l
       
+  @partial(jit, static_argnums=0)
+  def for_hX_comp(self, inp:jnp.array, weights:list):	
+      '''
+      Computes montecarlo estimator for the empirical risk of the training data 
+      '''
+      forward=lambda alpha:(self.ffnn_forward_pass(alpha,weights))
+      forward_mapped=vmap(forward,in_axes=1)(inp)
+      forward_mapped=forward_mapped.reshape((forward_mapped.shape[0]))
+      return forward_mapped
       
   @partial(jit, static_argnums=0)
   def crps_loss_forward_pass(self, inp:jnp.array, weights:list, b:jnp.array):
