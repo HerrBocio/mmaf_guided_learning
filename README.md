@@ -1,5 +1,5 @@
 # Spatio-temporal probabilistic forecast using MMAF-guided learning
-The following code is the Python implementation of the paper "[Spatio-temporal probabilistic forecast using MMAF-guided learning](arXiv:2603.15055)".
+The following code is the Python implementation of the paper "[Spatio-temporal probabilistic forecast using MMAF-guided learning](https://doi.org/10.48550/arXiv.2603.15055)".
 
 ## Clone repository
 
