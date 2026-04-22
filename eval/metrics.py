@@ -87,10 +87,14 @@ class Metrics():
 
       time_map = lambda alpha,beta: vmap(self.rmse_univ,in_axes=(0,1))(alpha,beta)
       space_map=lambda alpha,beta : vmap(time_map)(alpha,beta) 
+      self.mse_val = space_map(self.data_val[:,-1,:],self.ef_val)
+      self.mse_val_mean=jnp.mean(self.mse_val)
       self.rmse_val = space_map(self.data_val[:,-1,:],self.ef_val)
-      self.rmse_val_mean=jnp.mean(self.rmse_val)
+      self.rmse_val_mean=jnp.mean(jnp.sqrt(self.rmse_val))
+      self.mse_test= space_map(self.data_test[:,-1,:],self.ef_test)
+      self.mse_test_mean=jnp.mean(self.mse_test)
       self.rmse_test= space_map(self.data_test[:,-1,:],self.ef_test)
-      self.rmse_test_mean=jnp.mean(self.rmse_test)
+      self.rmse_test_mean=jnp.mean(jnp.sqrt(self.rmse_test))
   
   def rmse_univ(self,y,x):
       return jnp.mean((x-y)**2)
