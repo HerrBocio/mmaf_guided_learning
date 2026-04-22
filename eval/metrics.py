@@ -11,11 +11,14 @@ class Metrics():
 
     data_=jnp.empty((0,data[0].shape[-2],data[0].shape[-1]))
     params_=jnp.empty((0,model.best_params[0].shape[-2],model.best_params[0].shape[-1]))
+    #print(data[0].shape)
     for par,el in zip(model.best_params,data):
       data_=jnp.vstack([data_,el])
       params_=jnp.vstack([params_,par])
       #print(data)
-    data_=data[0]
+    
+    
+    #data_=data[0]
     self.filename=filename
     self.data_val = data_[:,:,0].reshape(data_.shape[0],data_.shape[1],1)
     self.data_test= data_[:,:,1:]
@@ -37,8 +40,8 @@ class Metrics():
         return m_e_f
 
 
-  def multi_ef_new(self):
-    ef=jnp.empty((0,self.Ndraws,19))
+  def multi_ef_new(self,size=101):
+    ef=jnp.empty((0,self.Ndraws,size))
     for j in range(self.data_test.shape[0]):
        coord_ef=self.multi_ef_mapped(self.data[j,:-1,:],self.params[j,:,:],rng=10*(j+1))
        ef=jnp.vstack([ef,coord_ef.reshape((1,*coord_ef.shape))])
@@ -85,12 +88,15 @@ class Metrics():
 
   def rmse_univ_rank(self):
 
-      time_map = lambda alpha,beta: vmap(self.rmse_univ,in_axes=(0,1))(alpha,beta)
+      time_map = lambda alpha,beta: vmap(self.mse_univ,in_axes=(0,1))(alpha,beta)
       space_map=lambda alpha,beta : vmap(time_map)(alpha,beta) 
-      self.rmse_val = space_map(self.data_val[:,-1,:],self.ef_val)
-      self.rmse_val_mean=jnp.mean(self.rmse_val)
-      self.rmse_test= space_map(self.data_test[:,-1,:],self.ef_test)
-      self.rmse_test_mean=jnp.mean(self.rmse_test)
+      self.mse_val = space_map(self.data_val[:,-1,:],self.ef_val)
+      self.mse_val_mean=jnp.mean(self.mse_val)
+      self.rmse_val_mean=jnp.mean(jnp.sqrt(jnp.mean(self.mse_val,axis=1)))
+      self.mse_test= space_map(self.data_test[:,-1,:],self.ef_test)
+      #print(self.mse_test.shape)
+      self.mse_test_mean=jnp.mean(self.mse_test)
+      self.rmse_test_mean=jnp.mean(jnp.sqrt(jnp.mean(self.mse_test,axis=1)))
   
-  def rmse_univ(self,y,x):
+  def mse_univ(self,y,x):
       return jnp.mean((x-y)**2)
