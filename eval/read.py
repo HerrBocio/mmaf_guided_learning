@@ -50,10 +50,10 @@ def inspect_output_structure(output):
     
 
 def ensemble_forecast(filename,a_val,horizon):
-    width=[4]#10,10,30,100,300,800]
+    width=[10,10,30,100,300,800]
     depth=[2,5,2,2,2,3]
-    priors=[10]#,30,50,70,90,110,130,150,170,190,210]
-    Ndraws=100
+    priors=[10,30,50,70,90,110,130,150,170,190,210]
+    Ndraws=1000
     #draws_shard=100
     m=1000
   
@@ -90,7 +90,7 @@ def ensemble_forecast(filename,a_val,horizon):
       validated_metrics=Metrics(validated_model,data_x,Ndraws,filename)
       validated_metrics.multi_ef()
       validated_metrics.crps_univ_rank()
-      validated_metrics.rmse_univ_rank()
+      validated_metrics.mse_univ_rank()
       
       emp_risk=output['training_history']['train_error'][output['best_training']['min_it']]
       validated_metrics.true_pac(m,emp_risk)
