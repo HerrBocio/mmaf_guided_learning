@@ -4,7 +4,7 @@ The following code is the Python implementation of the paper "[Spatio-temporal p
 ## Clone repository
 
 ```
-git clone https://github.com/leonardo-bardi/mmaf_guided_learning
+git clone https://github.com/HerrBocio/mmaf_guided_learning
 ```
 
 ## Run
