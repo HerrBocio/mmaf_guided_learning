@@ -29,10 +29,10 @@ def coordit(model,optimizer,params,batch,opt_state,rng):
   scorf=l_empirical_risk(model,batch)
   val_jest,jest = sge_pwj(scorf,params,my_multi_normal,rng)
   
-  updates = jest+grad
+  updates = grad + jest
   updates, opt_state = optimizer.update(updates,opt_state,params)  
   params = apply_updates(params,updates)
-  
+  #print(params)
   return [params,opt_state,val_jest,val_grad]
 
 
@@ -42,7 +42,7 @@ def train(config):
 
       embedding = Embedding(config)
       embedding.embedded_data()
-      config.data.a=embedding.a
+      config.data.a= 4 #embedding.a
       
       config.model.inp_size= sum([2*k*embedding.c+1 for k in range(1,embedding.p+1)])
       
@@ -100,8 +100,8 @@ def train(config):
               
               pac_shard   = lambda alpha: pacBound(model,embedding.m_batch,alpha) 
               pac_shard   = vmap(pac_shard)(model.params[ds_idx])
-              train_stacked= jnp.hstack([train_stacked,train_shard])
-              pac_stacked= jnp.hstack([pac_stacked,pac_shard])
+              train_stacked = jnp.hstack([train_stacked,train_shard])
+              pac_stacked = jnp.hstack([pac_stacked,pac_shard])
       
           train_epoch=jnp.vstack([train_epoch,train_stacked])
           pac_epoch = jnp.vstack([pac_epoch,pac_stacked])
@@ -140,7 +140,7 @@ def train(config):
         "data_test":embedding.clean_data_test
       }
         
-      with open(config.PATH_MOD+config.data.name+'['+str(config.model.width)+'^'+str(config.model.depth)+']_'+str(config.model.prior_var)+'_'+str(embedding.a)+".pkl", "wb") as f:
+      with open(config.PATH_MOD+config.data.name+'['+str(config.model.width)+'^'+str(config.model.depth)+']_'+str(config.model.prior_var)+'_a'+str(embedding.a)+".pkl", "wb") as f:
         pickle.dump(output, f)
 
 

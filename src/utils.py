@@ -37,6 +37,8 @@ def mask_gen(inp,arch):
     return mask
 
 
+
+
 def makeh5(net,hdata,names):
 
   '''

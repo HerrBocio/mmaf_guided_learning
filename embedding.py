@@ -2,6 +2,7 @@ import jax.numpy as jnp
 from jax import vmap, jit
 import numpy as np
 from scipy.optimize import newton
+import xarray as xr
 
 class Embedding(): 
 
@@ -133,7 +134,10 @@ class Embedding():
   
     def embedded_data(self):
 
-      data=np.load(self.data_path+'/data.npy')
+      #data=np.load(self.data_path+'/data.npy')
+      data=xr.open_dataset(self.data_path+'.grib')['t2m'].isel(latitude=50).values
+      data=data.T
+      print(data.shape)
       if self.data_name=='Gaudiamonddata1A4mln':
         self.A=3.840956
         hatc=1
@@ -141,7 +145,7 @@ class Embedding():
         self.A=3.868912
         hatc=1  
       else:  
-        Y=np.array(list(data))
+        Y=data #np.array(list(data))
         nrY, ncY = Y.shape
         
         dt=2
@@ -170,12 +174,14 @@ class Embedding():
         
         self.A = -np.log(1 - g01 / 2) / ( dt)
         hatc = -(self.A * dy) / np.log(1 - g10 / 2)
-
+      print('A c',self.A,hatc)
       
       lambda_=self.A * np.minimum(2.0, hatc) / (2*hatc)
       
-      self.c=int(np.floor(hatc))
-        
+      self.c=int(max(1,np.floor(hatc)))
+
+
+      
       data=data[:self.num_coords+2*self.c*self.p,:]*self.slope+self.q
         
       print(lambda_,self.A,hatc)
@@ -183,20 +189,21 @@ class Embedding():
       if self.data_name=='Gaudiamonddata1A4mln' or  self.data_name=='NIGdiamonddata1A4mln':
         a_search=lambda x : lambda_*self.h_t*(x-self.p) + np.log(0.025/(2*self.eps*self.m_batch)) 
         self.a = int(np.ceil(newton(a_search,1)))
-      elif self.data_name=='OLR_full':
-        a_search=lambda x : jnp.round(lambda_,decimals=3)*self.h_t*(x-self.p) + np.log(0.025*x/(2*self.eps*self.val_start_idx)) 
+
+      else: 
+        a_search=lambda x : lambda_*self.h_t*(x-self.p) + np.log(0.025/(2*self.eps*self.m_batch)) 
         self.a = int(np.ceil(newton(a_search,1)))
+
+      print(lambda_,self.c,self.a)
       
       self.Ncones = int(self.val_start_idx//self.a) 
       self.Nbatches=self.Ncones//self.m_batch
 
-      data=data[:,int(data.shape[-1]%self.a):]
-      print(data.shape[-1]%self.a-1,data.shape)
       
       
-      data_mapped = lambda alpha: self.get_coneJ(alpha,self.a*self.m_batch)  #self.val_start_idx-1)
+      data_mapped = lambda alpha: self.get_coneJ(alpha,self.a*self.m_batch)  
       list_shards= ([jnp.array([jnp.arange(coord-self.p*self.c,coord+self.p*self.c+1) for coord in range(element, element+self.shard_size)]) for element in range(self.p*self.c, data.shape[0]-self.p*self.c, self.shard_size)])
-      
+      print([el.shape for el in list_shards])
       clean_data=[]
       
       for ls in list_shards:
@@ -206,10 +213,10 @@ class Embedding():
           for i in ls:
             data_stacked=jnp.vstack([data_stacked,data[i, t_batch_idx*self.m_batch*self.a:(t_batch_idx+1)*self.m_batch*self.a].reshape(1, *data[i,t_batch_idx*self.m_batch*self.a:(t_batch_idx+1)*self.m_batch*self.a].shape)])
           data_sharded.append(data_stacked)
-        clean_data_t = [vmap(data_mapped)(el) for el in data_sharded]#
-        clean_data.append(clean_data_t)
+        clean_data_t = [vmap(data_mapped)(el) for el in data_sharded]
+        clean_data.append(jnp.array(clean_data_t))
       self.clean_data=clean_data
-      
+      print(len(self.clean_data), self.clean_data[0].shape)
       data_test_sharded=[]
       for ls in list_shards:
         data_stacked= jnp.empty((0,2*self.c*self.p+1,data[i,self.val_start_idx:].shape[-1]))
@@ -217,5 +224,5 @@ class Embedding():
           data_stacked=jnp.vstack([data_stacked,data[i,self.val_start_idx:].reshape(1,*data[i,self.val_start_idx:].shape)])
         data_test_sharded.append(data_stacked)
       data_test_mapped = lambda alpha: self.get_coneJ(alpha,data[:,self.val_start_idx:].shape[-1])
-      self.clean_data_test = [vmap(data_test_mapped)(el) for el in data_test_sharded]#
-
+      self.clean_data_test = [vmap(data_test_mapped)(el) for el in data_test_sharded]
+      print(self.clean_data_test[0].shape)

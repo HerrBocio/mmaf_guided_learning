@@ -116,15 +116,23 @@ def default_config(hparams):
   config.shard_size=hparams['shard_size']
   config.lr=0.005
   config.num_realizations=int(1e3)
-  config.shard_realization=int(1e2)
+  config.shard_realization=int(5e2)
   
   # Data Config
   config.data = edict()
   config.data.name = hparams['data_name']
   config.data.path = ws + '/dataset/'
 
+  if config.data.name =='2mT':
+      config.data.path= '/2mT/' 
+      config.data.epochs= 5000
+      config.data.m_batch = 559
+      config.data.num_coords=10
+      config.data.val_start_idx = 81686 
+      config.data.slope =  1
+      config.data.q = 0
   
-  if config.data.name == 'Gaudiamonddata1A4mln' or config.data.name== 'NIGdiamonddata1A4mln':
+  elif config.data.name == 'Gaudiamonddata1A4mln' or config.data.name== 'NIGdiamonddata1A4mln':
       config.data.epochs = 60
       config.data.m_batch=1000
       config.data.num_coords = 8
@@ -133,14 +141,6 @@ def default_config(hparams):
       config.data.slope = 1
       config.data.q = 0
     
-  elif config.data.name =='OLR_full':
-      config.data.epochs = 5000
-      config.data.m_batch= 36
-      config.data.num_coords = 8
-      config.data.val_start_idx = int(2304) 
-      config.horizon=19
-      config.data.slope = 0.012402022841533814 
-      config.data.q = 0.24020228415338135
 
   
   config.hparams = edict()
@@ -167,15 +167,19 @@ def default_config(hparams):
 if __name__ == '__main__':
 
   
-  width=[4]#10,10,30,100,300,800]
+  width=[10,10,30,100,300,800]
   depth=[2,5,2,2,2,3]
-  shard_size=[8,8,8,8,8,2]
-  priors=[10]#,30,50,70,90,110,130,150,170,190,210]
+  shard_size=[5,20,20,20,20,5]
+  priors=[10,30,50,70,90,110,130,150,170,190,210]
+  
   for i in range(len(width)):
     for pi in priors:
-      print('set', width[i],pi)
+      print('set', width[i],priors[i])
+      pi=priors[i]
       hparams = get_hparams(width_default=width[i], depth_default=depth[i], prior_var_default=pi, shard_size_default=shard_size[i])
       hparams = vars(hparams)
       config = default_config(hparams)
       train(config)
-  ensemble_forecast(config.data.name,config.data.a,config.horizon)
+  
+  
+  ensemble_forecast(config.data.name,146,41)
