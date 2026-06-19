@@ -58,6 +58,7 @@ class Metrics():
    
   def multi_ef_mapped(self,data,params,rng=60):
   
+    #print('dataval',data.shape) 
     w=dist_sample(params,self.Ndraws,seed=key(rng))    
     out=vmap(lambda alpha : self.model.ffnnV(alpha,w),in_axes=(1))
     ef= out(data)
@@ -83,7 +84,7 @@ class Metrics():
 
   def rmse_univ_rank(self):
 
-      time_map = lambda alpha,beta: vmap(self.mse_univ,in_axes=(0,1))(alpha,beta)
+      time_map = lambda alpha,beta: vmap(self.rmse_univ,in_axes=(0,1))(alpha,beta)
       space_map=lambda alpha,beta : vmap(time_map)(alpha,beta) 
       self.mse_val = space_map(self.data_val[:,-1,:],self.ef_val)
       self.mse_val_mean=jnp.mean(self.mse_val)
@@ -92,5 +93,5 @@ class Metrics():
       self.mse_test_mean=jnp.mean(self.mse_test)
       self.rmse_test_mean=jnp.mean(jnp.sqrt(jnp.mean(self.mse_test,axis=1)))
   
-  def mse_univ(self,y,x):
+  def rmse_univ(self,y,x):
       return jnp.mean((x-y)**2)

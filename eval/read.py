@@ -65,44 +65,38 @@ def ensemble_forecast(filename,a_val,horizon):
     for i in range(len(width)):
       lowest_crps=+jnp.inf
       lowest_prior=0
-      
       for pi in priors:
         
         filepath = "/output/model/"+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(pi))+'_a'+str(a_val)+".pkl"
     
         output = load_pickle_file(filepath)
         data_x=output['data_test']
+        
         model = output["model"]
         metrics=Metrics(model,data_x,Ndraws,filename)
-        metrics.multi_ef_new(size=41)
+        metrics.multi_ef()
         metrics.crps_univ_rank()
+        
         
         if metrics.crps_val_mean<lowest_crps:
           lowest_crps=metrics.crps_val_mean
           lowest_prior=pi
 
-      
-      lowest_prior=priors[i]
+    
       print('Validated prior  [', width[i],'^',depth[i],']:  ',lowest_prior)
       
       filepath = ''+filename+'['+str(width[i])+'^'+str(depth[i])+']_'+str(int(lowest_prior))+'_a'+str(a_val)+".pkl"
       
       
       output = load_pickle_file(filepath)
-
-      data_x=output['data_test']
-
-      print(output['training_history']['train_error'].shape)
-      
-      #inspect_output_structure(output)
       print('min it ',output['best_training']['min_it'])
       validated_model = output["model"]
-      target=(output['training_history']['train_error'][output['best_training']['min_it']] + output['training_history']['val_grad'][output['best_training']['min_it']][:,-1]).mean(axis=0) 
-      validated_metrics=Metrics(validated_model,data_x,Ndraws,filename,Ncoords=Ncoords)
-      validated_metrics.multi_ef_new(size=41)
+      target=(output['training_history']['train_error'][output['best_training']['min_it']] + output['training_history']['val_grad'][output['best_training']['min_it']][:,-1]).mean(axis=0)
+      validated_metrics=Metrics(validated_model,data_x,Ndraws,filename)
+      validated_metrics.multi_ef()
       validated_metrics.crps_univ_rank()
       validated_metrics.rmse_univ_rank()
-      print(validated_metrics.ef_test.shape)
+      
       emp_risk=output['training_history']['train_error'][output['best_training']['min_it']]
       validated_metrics.true_pac(m,emp_risk)
 

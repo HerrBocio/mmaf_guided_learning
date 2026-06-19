@@ -1,10 +1,10 @@
 # Spatio-temporal probabilistic forecast using MMAF-guided learning
-The following code is the Python implementation of the paper "Spatio-temporal probabilistic forecast using MMAF-guided learning".
+The following code is the Python implementation of the paper "[Spatio-temporal probabilistic forecast using MMAF-guided learning](https://doi.org/10.48550/arXiv.2603.15055)".
 
 ## Clone repository
 
 ```
-git clone https://github.com/leonardo-bardi/mmaf_guided_learning
+git clone https://github.com/HerrBocio/mmaf_guided_learning
 ```
 
 ## Run
@@ -14,7 +14,7 @@ git clone https://github.com/leonardo-bardi/mmaf_guided_learning
 jax v0.9.2
 optax
 easydict
-pickle`
+pickle
 ```
 
 ### Start the training routine
