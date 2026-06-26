@@ -20,7 +20,7 @@ def pit_value(ef,b):
 
     
 def mmaf_plot(metrics,pi,width,depth,min_error,epochs): 
-    pathF='../mmaf_guided_learning/favelas/figures/'
+    pathF='../mmaf_guided_learning/figures/'
     list_coords = range(metrics.data_val.shape[0])
     print(len(list_coords))
     pathPrior=pathF+metrics.filename+'/ef/'+'[' + str(width) +'^'+str(depth)+ ']'+'/'
