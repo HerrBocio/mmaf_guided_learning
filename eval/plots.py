@@ -27,7 +27,7 @@ def mmaf_plot(metrics,pi,width,depth,min_error,epochs):
     create_folder(pathPrior)
     file_path=''
     
-    data_det=xr.open_dataset(file_path+'2mT.grib')['t2m'].isel(time=slice(747902,753888),latitude=50).values
+    #data_det=xr.open_dataset(file_path+'2mT.grib')['t2m'].isel(time=slice(747902,753888),latitude=50).values
   
 
     data_det=data_det[145::146]
